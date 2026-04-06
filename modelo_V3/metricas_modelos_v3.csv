@@ -1,0 +1,7 @@
+Model,MAE Int_Signed_6m_kt,RMSE Int_Signed_6m_kt,R2 Int_Signed_6m_kt,Erro<0.5 Int_Signed_6m_kt%,MAE Int_Signed_superficie_kt,RMSE Int_Signed_superficie_kt,R2 Int_Signed_superficie_kt,Erro<0.5 Int_Signed_superficie_kt%,MAE Int_Signed_3m_kt,RMSE Int_Signed_3m_kt,R2 Int_Signed_3m_kt,Erro<0.5 Int_Signed_3m_kt%
+Gradient Boosting,0.267,0.398,0.714,87.316,0.194,0.263,0.86,94.616,0.192,0.262,0.872,94.797
+XGBoost,0.265,0.404,0.705,87.238,0.194,0.264,0.859,94.512,0.192,0.266,0.868,94.408
+LightGBM,0.26,0.396,0.717,88.299,0.176,0.242,0.882,96.246,0.178,0.248,0.886,95.703
+CatBoost,0.256,0.388,0.728,87.989,0.176,0.243,0.881,96.143,0.178,0.248,0.886,95.729
+MLP,0.279,0.416,0.688,86.151,0.21,0.289,0.832,93.088,0.227,0.298,0.836,92.855
+LSTM_V3,0.272,0.398,0.714,88.118,0.21,0.275,0.847,94.745,0.219,0.29,0.844,93.917

@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Sensitive data
+chave.json
+*.json
+
+# Large datasets and models
+*.csv
+*.zip
+*.keras
+*.joblib
+catboost_info/
+
+# Exception for small metrics CSVs
+!metricas_*.csv
+
+# Temporary files
+*.tmp
+.ipynb_checkpoints/
+*.png

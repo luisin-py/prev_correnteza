@@ -1,0 +1,12 @@
+pandas
+scikit-learn
+google-cloud-storage
+google-cloud-bigquery
+db-dtypes
+joblib
+requests
+numpy
+xgboost
+lightgbm
+catboost
+google-auth
