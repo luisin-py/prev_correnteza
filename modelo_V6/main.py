@@ -178,7 +178,7 @@ print(f"      Período: {df_historico['datahora'].iloc[0]} → {df_historico['da
 # %%
 query_hora_atual = f"""
 SELECT
-    CAST(TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), HOUR) AS DATETIME) AS datahora,
+    DATETIME_TRUNC(DATETIME(CURRENT_TIMESTAMP(), 'America/Sao_Paulo'), HOUR) AS datahora,
     AVG(CAST(intensidade_superficie AS FLOAT64)) AS intensidade_superficie_kt,
     AVG(CAST(intensidade_6m AS FLOAT64)) AS intensidade_6m_kt,
     AVG(CAST(intensidade_3m AS FLOAT64)) AS intensidade_3m_kt,
@@ -186,7 +186,7 @@ SELECT
     AVG(CAST(direcao_6m AS FLOAT64)) AS direcao_6m_deg,
     AVG(CAST(direcao_3m AS FLOAT64)) AS direcao_3m_deg
 FROM `{TABLE_5MIN}`
-WHERE CAST(timestamp_br AS TIMESTAMP) >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), HOUR)
+WHERE CAST(timestamp_br AS DATETIME) >= DATETIME_TRUNC(DATETIME(CURRENT_TIMESTAMP(), 'America/Sao_Paulo'), HOUR)
 """
 print("  3B. Estimativa da hora atual (via 5 min)...")
 try:
