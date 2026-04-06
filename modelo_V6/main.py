@@ -331,15 +331,9 @@ df_base[cols_conv] = df_base[cols_conv].apply(
     pd.to_numeric, errors="coerce"
 ).fillna(0).astype("float32")
 
-# 4.4 Transformação direcional (+ enchente / - vazante)
-for int_col, dir_col in [
-    ("intensidade_6m_kt", "direcao_6m_deg"),
-    ("intensidade_superficie_kt", "direcao_superficie_deg"),
-    ("intensidade_3m_kt", "direcao_3m_deg"),
-]:
-    if int_col in df_base.columns and dir_col in df_base.columns:
-        mask = (df_base[dir_col] > 90) & (df_base[dir_col] < 270)
-        df_base.loc[mask, int_col] *= -1
+# 4.4 Transformação direcional (+ enchente / - vazante) removida
+# O modelo V5 foi treinado com intensidades puramente positivas.
+
 
 print(f"  ✓ Base preparada: {df_base.shape}")
 print(f"  ✓ Última linha: {df_base['datahora'].iloc[-1]}")
