@@ -578,10 +578,10 @@ WHEN MATCHED THEN
   UPDATE SET
     T.correnteza_superficie_prevista_dinamica = S.previsao_correnteza_superficie,
     T.atualizado_em = CURRENT_TIMESTAMP(),
-    -- Só preenche primeiro_calculo se estiver NULL e ~2h de distância
+    -- Compara a hora alvo com o horário local real do Brasil (-3h de diferença com UTC)
     T.correnteza_superficie_prevista_primeiro_calculo = IF(
         T.correnteza_superficie_prevista_primeiro_calculo IS NULL
-        AND TIMESTAMP_DIFF(S.datahora_alvo, CURRENT_TIMESTAMP(), MINUTE) BETWEEN 105 AND 135,
+        AND TIMESTAMP_DIFF(S.datahora_alvo, CAST(DATETIME(CURRENT_TIMESTAMP(), 'America/Sao_Paulo') AS TIMESTAMP), MINUTE) BETWEEN 105 AND 135,
         S.previsao_correnteza_superficie,
         T.correnteza_superficie_prevista_primeiro_calculo
     )
@@ -593,7 +593,7 @@ WHEN NOT MATCHED THEN
     S.datahora_alvo, 
     S.previsao_correnteza_superficie, 
     -- Se já estiver na janela de 2h na inserção, grava no primeiro_calculo
-    IF(TIMESTAMP_DIFF(S.datahora_alvo, CURRENT_TIMESTAMP(), MINUTE) BETWEEN 105 AND 135, S.previsao_correnteza_superficie, NULL),
+    IF(TIMESTAMP_DIFF(S.datahora_alvo, CAST(DATETIME(CURRENT_TIMESTAMP(), 'America/Sao_Paulo') AS TIMESTAMP), MINUTE) BETWEEN 105 AND 135, S.previsao_correnteza_superficie, NULL),
     CURRENT_TIMESTAMP()
   )
 """
