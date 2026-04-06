@@ -40,8 +40,8 @@ warnings.filterwarnings("ignore")
 CREDENTIALS_PATH = r"C:\Users\LUIS\Desktop\previsoes_dados_agua\2026_kevi\chave.json"
 PROJECT_ID = "local-bliss-359814"
 
-# Diretório dos modelos pré-treinados (V5)
-MODEL_DIR = r"C:\Users\LUIS\Desktop\previsoes_dados_agua\modelo_V5"
+# Diretório dos modelos pré-treinados (na mesma pasta V6 agora)
+MODEL_DIR = r"C:\Users\LUIS\Desktop\previsoes_dados_agua\modelo_V6"
 OUTPUT_DIR = r"C:\Users\LUIS\Desktop\previsoes_dados_agua\modelo_V6"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
