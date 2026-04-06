@@ -588,8 +588,14 @@ WHEN MATCHED THEN
 
 -- Se a hora não existe (previsões distantes), insere linha nova
 WHEN NOT MATCHED THEN
-  INSERT (datahora_alvo, correnteza_superficie_prevista_dinamica, atualizado_em)
-  VALUES (S.datahora_alvo, S.previsao_correnteza_superficie, CURRENT_TIMESTAMP())
+  INSERT (datahora_alvo, correnteza_superficie_prevista_dinamica, correnteza_superficie_prevista_primeiro_calculo, atualizado_em)
+  VALUES (
+    S.datahora_alvo, 
+    S.previsao_correnteza_superficie, 
+    -- Se já estiver na janela de 2h na inserção, grava no primeiro_calculo
+    IF(TIMESTAMP_DIFF(S.datahora_alvo, CURRENT_TIMESTAMP(), MINUTE) BETWEEN 105 AND 135, S.previsao_correnteza_superficie, NULL),
+    CURRENT_TIMESTAMP()
+  )
 """
 
 try:

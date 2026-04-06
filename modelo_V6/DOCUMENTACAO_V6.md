@@ -95,11 +95,12 @@ A coluna `correnteza_superficie_prevista_primeiro_calculo` é o "print" do model
 *   **Trigger**: Cloud Scheduler (cron: `*/15 * * * *`).
 
 ### 6.2 Lista de Arquivos (Checklist de Deploy)
-1.  `main.py`: Código fonte unificado.
-2.  `requirements.txt`: Dependências (`lightgbm`, `pandas`, `google-cloud-bigquery`, `joblib`).
-3.  `chave.json`: Credenciais da Service Account.
-4.  `scaler_X.joblib`, `scaler_y.joblib`: Normalizadores salvos no treinamento.
-5.  `modelo_LightGBM.joblib`: Pesos do modelo vencedor.
+
+1. `main.py`: Código fonte unificado.
+2. `requirements.txt`: Dependências (`lightgbm`, `pandas`, `google-cloud-bigquery`, `joblib`).
+3. `chave.json`: Credenciais da Service Account.
+4. `scaler_X.joblib`, `scaler_y.joblib`: Normalizadores salvos no treinamento.
+5. `modelo_LightGBM.joblib`: Pesos do modelo vencedor.
 
 ---
 **Documentação revisada em: 06/04/2026**
