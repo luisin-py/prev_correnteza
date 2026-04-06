@@ -331,9 +331,11 @@ df_base[cols_conv] = df_base[cols_conv].apply(
     pd.to_numeric, errors="coerce"
 ).fillna(0).astype("float32")
 
-# 4.4 Transformação direcional (+ enchente / - vazante) removida
-# O modelo V5 foi treinado com intensidades puramente positivas.
-
+# 4.4 Restaurar discretização de graus (0-360) para quadrantes (0-15)
+# Obrigatório: o V5 (ML.xtrain_horario_t_2026) foi treinado apenas com categorias 0 a 15.
+for col in ["direcao_6m_deg", "direcao_superficie_deg", "direcao_3m_deg", "vento_num"]:
+    if col in df_base.columns:
+        df_base[col] = (df_base[col] / 22.5).round() % 16
 
 print(f"  ✓ Base preparada: {df_base.shape}")
 print(f"  ✓ Última linha: {df_base['datahora'].iloc[-1]}")
