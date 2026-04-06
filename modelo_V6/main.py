@@ -249,57 +249,44 @@ else:
     print("      ⚠ Nenhum dado de chuva obtido")
 
 # %% [markdown]
-# ### 3D. OpenWeather Forecast via BigQuery (vento, pressão — próximas 9h)
+# ### 3D. OpenWeather Forecast Direto (vento, pressão — próximas 9h)
 
 # %%
-print("  3D. OpenWeather forecast (BQ)...")
+print("  3D. OpenWeather forecast (API Direta 1h)...")
 
-# O timestamp_execucao na tabela de forecast nos permite pegar a rodagem mais recente
-query_ow = f"""
-SELECT * FROM (
-    SELECT
-        PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', dt_txt) AS datahora,
-        wind_speed,
-        wind_deg,
-        wind_gust,
-        pressure,
-        humidity,
-        temp,
-        feels_like,
-        ROW_NUMBER() OVER(PARTITION BY dt_txt ORDER BY timestamp_execucao DESC) as rn
-    FROM `{TABLE_OW_FORECAST}`
-    WHERE PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', dt_txt) >= CURRENT_TIMESTAMP()
-      AND PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S', dt_txt) <= TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 9 HOUR)
-)
-WHERE rn = 1
-ORDER BY datahora
-"""
+OW_API_KEY = "10fe60f23364376f39951ae7c07d0007"
+lat_rg, lon_rg = -32.035, -52.0986 # Rio Grande
+
 try:
-    df_ow = bq_client.query(query_ow).to_dataframe()
-    df_ow["datahora"] = pd.to_datetime(df_ow["datahora"])
-    print(f"      ✓ {len(df_ow)} registros de forecast OpenWeather")
+    url_ow = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat_rg}&lon={lon_rg}&exclude=current,minutely,daily,alerts&units=metric&appid={OW_API_KEY}"
+    r_ow = requests.get(url_ow, timeout=30)
+    r_ow.raise_for_status()
+    hourly_ow = r_ow.json().get("hourly", [])
+    
+    rows_ow = []
+    for h in hourly_ow:
+        rows_ow.append({
+            "datahora": pd.to_datetime(h["dt"], unit='s', utc=True).tz_convert("America/Sao_Paulo").tz_localize(None),
+            "wind_speed": h.get("wind_speed"),
+            "wind_deg": h.get("wind_deg"),
+            "pressure": h.get("pressure"),
+            "humidity": h.get("humidity"),
+            "feels_like": h.get("feels_like"),
+            "temp": h.get("temp")
+        })
+    df_ow_interp = pd.DataFrame(rows_ow)
+    
+    # Filtrar para janela de interesse (Próximas 9h a partir de agora)
+    now_h = pd.Timestamp.now().floor('h')
+    df_ow_interp = df_ow_interp[
+        (df_ow_interp["datahora"] >= now_h) & 
+        (df_ow_interp["datahora"] <= now_h + pd.Timedelta(hours=9))
+    ].reset_index(drop=True)
+    
+    print(f"      ✓ {len(df_ow_interp)} horas granulares capturadas da API OpenWeather")
 except Exception as e:
-    df_ow = pd.DataFrame()
-    print(f"      ⚠ Erro OpenWeather: {e}")
-
-# Interpolação 3h→1h
-if not df_ow.empty and len(df_ow) >= 2:
-    # Garante que não há duplicatas de datahora (o MERGE/ROW_NUMBER já deve ter resolvido)
-    df_ow = df_ow.drop_duplicates(subset=["datahora"]).set_index("datahora")
-    num_cols = df_ow.select_dtypes(include=[np.number]).columns.tolist()
-    df_ow_num = df_ow[num_cols]
-
-    novo_index = pd.date_range(
-        start=df_ow_num.index.min(),
-        end=df_ow_num.index.max(),
-        freq="1h",
-    )
-    df_ow_interp = df_ow_num.reindex(novo_index).interpolate(method="linear")
-    df_ow_interp = df_ow_interp.reset_index().rename(columns={"index": "datahora"})
-    print(f"      ✓ Interpolado para {len(df_ow_interp)} horas")
-else:
     df_ow_interp = pd.DataFrame()
-    print("      ⚠ OpenWeather insuficiente para interpolação")
+    print(f"      ⚠ Erro OpenWeather: {e}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. PRÉ-PROCESSAMENTO — Monta DataFrame Unificado
