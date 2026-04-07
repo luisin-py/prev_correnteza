@@ -44,15 +44,15 @@ Módulo *Stateless* onde ocorre o ajuste matemático desassociado de cargas em m
 
 ---
 
-### Módulo C: Motor de Inferência On-Demand (`main_v7.py`)
-Este submódulo corresponde à subida em Produção de Machine Learning, desenhado sob micro-rotinas de 15 a 15 min de agendamento em cron job. Executa e responde ao Frontend com acoplamento final a bases transacionais.
+### Módulo C: Motor de Inferência On-Demand e Walk-Forward (`main_v7.py`)
+Este submódulo corresponde à subida em Produção de Machine Learning, desenhado sob micro-rotinas de 15 a 15 min de agendamento em cron job. Executa a avançada heurística de **Walk-Forward com Leads Progressivos** para alcançar 6 horizontes plenos de previsão matemática.
 
-**Fluxo Técnico de Deploy:**
-1. **Fetch Temporal de Janela Restrita:** Capta no GBQ estritas `48` horas de logs passados estabilizados para compor os denominados Rolling Statistics (médias de Inércia Física - Lags e MA).
-2. **Fetch Predictivo Externo:** Dispara via HTTP Rest API as requisições sincrônicas oficiais nas Chaves Prêmium Preditivas (`OpenWeather OneCall` e `Open-Meteo`), capturando vetores climáticos das Exatas próximas 5 horas `(t+1 a t+5)`.
-3. **Pivoteamento Virtual (DataFrame Appending):** Constroi Arrays virtuais nulos e concatenados (Linhas inferiorizadas) simulando as 5 horas estritas onde a "correnteza d'água" carente encontra-se vazia, mas as features mapeadas das API já suportam medição densa de Clima.
-4. **Vetorização In-Loco Combinada:** Em vez de mapeamento isolado for loop, por encadeamento Pandas as colunas `meteo_cols.shift(-lead)` (Shift Reativo) agrupam imediatamente essas 5 colunas do Futuro e injetam nas variáveis atadas ao index matriz `T0`.
-5. **Inferência Pura Matemática:** Entrega-se a matriz preenchida (Dimensão Fixa = Número Total do Scaler Base) para Predict. Recebe de volta o Score em Float Absoluto para o tempo `T+1` e `T+2`.
-6. **Inserção Cíclica Consolidada (MERGE SQL):** Envio dos logs na tabela de monitoramento contendo a heurística de Validação da Praticagem: (`Δt entre predição e timestamp atual situar-se entre 90 a 150min congela o registro de fato em 'Primeiro Cálculo' oficial e inalterável do painel BI`). Evita anomalias em dashboard.
+**Fluxo Técnico de Deploy (Laço de 6 Iterações):**
+1. **Fetch Temporal Inicial:** Capta no GBQ estritas `48` horas de logs passados estabilizados para compor a Inércia Física - Lags e MAs - de partida.
+2. **Fetch Predictivo Estendido Externo:** Dispara via HTTP Rest API as requisições na `OpenWeather OneCall` e `Open-Meteo`, capturando vetores climáticos das Exatas próximas 12 horas `(t+1 a t+12)`. O sobredimensionamento de clima exterior garante que o modelo nunca fique carente das features de Lead avançadas no auge de seu laço final.
+3. **Pivoteamento Virtual:** Constrói Arrays concatenados de 12 horas estritas no futuro onde a "correnteza d'água" iniciante encontra-se vazia, mas as features mapeadas de Clima já suportam a medição atmosférica local.
+4. **Iteração Walk-Forward:** Inicializa a predição. Ao submeter a primeira matriz (T+1), a engine extrai os Outputs Float do LightGBM (Intensidades projetadas de Correnteza). Em um movimento retrógrado intrassistema, o script **injeta de volta** essas 3 correntes preditas nos seus respectivos Arrays vazios do instante T+1.
+5. **Autonomia (T+2 a T+6):** O Index recomeça deslocando virtualmente a realidade para frente (O `T0` torna-se `T+1`). A matriz recalcula as Médias de janela deslizante (Rolling MA) aceitando organicamente as variáveis recém-projetadas, misturando perfeitamente com o clima que as APIs do exterior já confirmaram que acontecerá, e descobre assim o `T+2` sucessivamente até `T+6`.
+6. **Inserção Cíclica Consolidada (MERGE SQL):** Envio dos logs num único Batch de 6 timestamps na tabela de monitoramento contendo a heurística de Validação da Praticagem: (`Δt entre predição e timestamp atual situar-se entre 90 a 150min`). Evita faturamentos excedentes no Google BigQuery e resolve anomalias em dashboard.
 
-A V7 encerra a necessidade temporal e sequencial da retroalimentação dos cálculos do canal provada por recursão de inércia e escala de performance da rede por meio integral de Forçamentos de Leds Preditivos Físicos da atmosfera adjacente.
+A V7 consagra a fundição da melhor infraestrutura MLOps combinando a Estabilidade Recursiva (Walk-Forward dos lags hídricos) empurrada fortemente pelas matrizes de Forçamentos Progressivos Físicos da atmosfera adjacente (Leads climáticos reais em loco).
