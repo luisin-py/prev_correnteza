@@ -1,53 +1,58 @@
-# 📘 Livro de Arquitetura: Pipeline de Predição de Correnteza (V7)
+# Documentação Técnica: Arquitetura do Modelo de Predição de Correnteza (V7)
 
-Este documento descreve detalhadamente o fluxo de engenharia, processamento de dados e inferência de ponta a ponta do projeto de **Previsão de Correnteza e Dinâmica Portuária de Rio Grande**. O modelo foi desenhado para observar o comportamento físico do canal e antecipar a turbulência da maré utilizando Inteligência Artificial de alta performance (LightGBM).
-
----
-
-## 1. O Conceito Físico do Modelo
-Para prever a força da correnteza em alto mar, o modelo baseia-se em três pilares fundamentais no eixo do tempo:
-
-1. **A Inércia Física (LAGs e Médias Móveis):** O oceano não para abruptamente. O modelo analisa as últimas **1 a 5 horas no passado** da própria água e do clima (lags) e médias (MAs) para entender o momento absoluto do canal.
-2. **A Força do Ambiente Atual (T0):** Nível estático, temperatura local, umidade e posição do sensor.
-3. **O Ímã Climático do Futuro (LEADs):** A grande inovação. Sensores de água reagem ao que a atmosfera *fará*. O modelo recebe antecipadamente as **previsões atmosféricas (Vento, Temperatura, Chva) de 1 a 5 horas no futuro**, garantindo preparo antecipado para ciclones extratropicais ou ressacas repentinas.
+Este documento descreve as especificações técnicas, engenharia de dados (Feature Engineering) e o pipeline de deploy de Machine Learning da Arquitetura V7 para predição vetorial e hidrodinâmica do Porto de Rio Grande.
 
 ---
 
-## 2. A Trindade de Execução
-Para garantir redundância, segurança em nuvem e velocidade, o sistema é arquiteturalmente dividido em três Códigos Python (Módulos Independentes):
+## 1. Arquitetura Analítica (Lags e Leads)
 
-### 🛠️ Módulo 1: A Fábrica de Treinamento (`build_features_V7.py`)
-**Objetivo:** Agrupar vastos anos de dados reais para construir a tabela mestre onde a Inteligência Artificial vai estudar e aprender a dinâmica do mar.
+O modelo V7 resolve a predição da intensidade das correntes por modelagem multivariada baseada em séries temporais. Para compor o vetor de inferência (instante `T0`), o algoritmo utiliza três classes de features simultâneas:
 
-**Passo a Passo de como funciona:**
-- **Coleta Externa (Open-Meteo):** Realiza chamadas a APIs meteorológicas históricas, baixando o índice pluviométrico (chuva) hora a hora absoluto de 9 grandes Bacias Hidrográficas do Sul do Brasil.
-- **Merge da Boia (BigQuery):** Acopla o volume de água das chuvas ao gigantesco histórico da Boia Praticagem armazenado (Mais de 40 mil horas cruzadas de vento, umidade, e correnteza em 3 camadas de profundidade diferentes).
-- **Tratamento de Bússola:** A bússola real navega em `360 graus`. Isso confunde a Inteligência Artificial, gerando ruído linear. O script "fatia" toda coordenada de vento em **16 Quadrantes Geométricos de 22.5 Graus** de varredura.
-- **Tratamento Vetorial Absoluto:** A água entrando ou saindo ("Enchente e Vazante") foi isolada das métricas, fornecendo à matemática do modelo o vetor de velocidade nua e crua para que ele mensure apenas a "Força Absoluta" desconsiderando polos negativos e positivos matemáticos.
-- **Teia Temporal:** A partir desse purê de informações, gera matrizes de *Lags* (deslocando a tabela linhas para baixo, simulando o passado), e matrizes de *Leads* (Puxando matrizes do Clima para cima). 
-- **Destino:** A base 100% pronta com mais de 250 colunas, sem formatações obscuras, é enviada em definitivo para o `BigQuery` na nuvem (`ML.xtrain_horario_t_2026_V7`). Nenhum script seguinte precisa fazer processamento pesado nunca mais.
+1. **Features Temporais Regressivas (LAGs e MAs):** Deslocamentos retrospectivos (`t-1` a `t-5`) da intensidade e direções da própria correnteza e dos sensores passados. Utilizadas para capturar as perturbações inerciais do estuário.
+2. **Features de Estado (T0):** As condições físicas exatas marcadas pelo sensor hidrodinâmico no timestamp atual (como Temperatura, Pressão, Cota).
+3. **Features Temporais Progressivas (LEADs):** Integração preditiva por *Future Horizons*. Modelos matemáticos de escoamento possuem intensa correlação com forçamentos eólicos e barométricos paralelos/futuros. A V7 consolida previsões exatas das APIs (`t+1` a `t+5`) para Chuva, Vento e Pressão como features intrínsecas acopladas ao vetor central `T0`.
 
 ---
 
-### 🧠 Módulo 2: O Cérebro Matemático (`train_lightgbm_from_bq_V7.py`)
-**Objetivo:** Este módulo foi construído inteiramente com propósito de **treinamento assíncrono isolado**. Isso nos permite re-treinar a IA na nuvem ou em máquinas de baixo porte, já que ela só precisa baixar e engolir os números mastigados.
+## 2. Componentes e Rotinas do Sistema (Pipelines)
 
-**Passo a Passo de como funciona:**
-- **Download Cru:** Faz um Select simples na matriz mestre gerada pelo passo anterior e aplica um Scaler (Normalização entre `0` e `1`) em todos os vetores numéricos para prevenir o viés estatístico de grandezas mistas (ex: Pressão 1012 VS Correnteza 0.8).
-- **Engine Opt-In:** Carrega a malha `MultiOutputRegressor` encapsulando as Árvores Baseadas Em Histograma do **LightGBM** (Otimizadas pela Microsoft). O sistema entende que precisa chutar alvos diretos em matrizes MultiClasse (`Correnteza +1H` e `Correnteza +2H`).
-- **Validação de Sangue Frio:** Avalia cegamente o teste gerando um log rápido do erro Absoluto Médio nas predições (MAE) contra cenários que ele nunca tinha visto na vida.
-- **Persistência:** O algoritmo treinado salva a si mesmo como arquivos curtos gerados em `.joblib` junto com seus Scalers de redimensionamento na sua respectiva pasta raiz, prontos para uso infinito.
+O sistema segue padrões estritos de MLOps dividindo O processamento Batch do processamento em Streaming (Produção/Inferência). O pipeline fragmenta-se em três scripts autônomos.
+
+### Módulo A: Pipeline de Treinamento e ETL (`build_features_V7.py`)
+Responsável pelas rotinas diárias/semanais de ETL e por exportar matrizes consolidadas (`Train/Test Dataframe`) direto no Data Warehouse (`BigQuery`).
+
+**Fluxo Técnico:**
+- **Ingestão Externa:** Requisita o endpoint de arquivo histórico (`archive-api.open-meteo.com`) convertendo os subvolumes pluviométricos de 9 bacias em dataframes indexados temporais a partir do ano-base de 2020.
+- **Join (Consolidação):** Unificação entre as métricas passadas da Praticagem (`mestre_hour_tratada`) no BigQuery via chave `datahora_h`.
+- **Discretização Setorial:** A variável rotacional contínua dos ventos e correntezas numéricas (`0` a `360` graus) é subdividida uniformemente em `16` quadrantes categóricos (`22.5` graus/setor) otimizando divisões de folha por árvores de decisão.
+- **Tratamento de Assimetria Escalar:** Isolação pura do Módulo Direcional. Variáveis de estado como "Enchente" / "Vazante" (Sinais de Vetor) têm seus fatores multiplicados em condicionalidade por ângulo de entrada para retornar a Força Vetorial Absoluta.
+- **Janelamento Temporal de Matriz:** Acopla as defasagens preditivas chamando o método estrutural `pandas.DataFrame.shift(steps)`. `steps > 0` geram Features Lags. `steps < 0` empurram vetores abaixo isolando Feature Leads para variáveis atmosféricas e de chuva. O target é criado via `shift(-1)` (`_h1`) e `shift(-2)` (`_h2`).
+- **Load (Storage Push):** Realiza Upsert do frame multi-dimensional processado integralmente pronto na tabela `ML.xtrain_horario_t_2026_V7`.
 
 ---
 
-### 🟢 Módulo 3: O Operário (Inferência ao Vivo) - `main_v7.py`
-**Objetivo:** Rodar silenciosamente de 15 em 15 minutos em Produção para proteger a manobrabilidade dos navios do porto, dando as ordens para os paineis visuais dos práticos.
+### Módulo B: Otimização Numérica / Modelagem (`train_lightgbm_from_bq_V7.py`)
+Módulo *Stateless* onde ocorre o ajuste matemático desassociado de cargas em memórias prévias de ETL.
 
-**Como o Robô pensa na Produção:**
-1. **Verificação do Acervo (O T0):** O script interroga o Banco de Dados requisitando exatamente o que ocorreu nas últimas 48 horas reais registradas pelos Sensores.
-2. **A "Grade Fantasma" (The Phantom Grid):** Este é o pulo do gato. Como o modelo foi treinado enxergando "5 horas do Futuro Climático" (`_leadX`), o robô invoca a API moderna (`OneCall 3.0 OpenWeather`) e da (`Open-Meteo`) para resgatar como será a pressão, vento e chuva das próximas 5 horas na barra. O script as agrupa dentro de um Grid provisório onde a "Correnteza do Futuro" está forçadamente sinalizada como Cega (`NaN`).
-3. **Escorregamento Automático:** Ao aplicar a lógica linear idêntica do treinamento nas matrizes agrupadas, a Mágica Natural do Pandas acontece. Os blocos do futuro preenchem retroativamente a Janela do Tempo Atuali (`T0`), servindo os ventos que acontecerão num prato limpo sem depender das pesadas chaves for-loop de repetição recursiva computacional.
-4. **Alimentação Cega:** A matriz contendo "Inércia Recente + Atmósfera Futura Certa" bate na porta do LightGBM previamente treinado, pedindo socorro, e o modelo entrega de bate pronto os Valores Estáticos da Pressão Oceânica para o T+1 e T+2.
-5. **Insert Estratégico (Regra das 2h):** Os números sobem ordenados sob protocolo de `MERGE` oficial na base da nuvem. O Script sabe que só deve selar (congelar em pedra firme) o número oficial das 2 Horas se o lapso temporal entre "A Geração do Dado via IA" real contra "O Horário Alvo Oficial" bater exatos entre 90 a 150 Minutos. Assim gerando as estritas Views Limpas de Veracidade.
+**Fluxo Técnico:**
+- **Data Fetching:** Realiza o pull da base padronizada via Pandas GBQ.
+- **Preprocessing:** Aplicação do `MinMaxScaler` em todos os vetores dinâmicos, limitando restrições de amplitude para otimizar os Gradientes Computacionais.
+- **Modelagem Regressiva Multi-Classe:** Instancia o framework nativo da Microsoft: `LightGBM (LGBMRegressor)`. Diferente da aproximação em Level-Wised regular (XGBoost), o LGBM escala perfeitamente sob crescimento `leaf-wise`.
+- **Framework Mutli-Output:** Conterizado através da biblioteca SciKit-Learn (`MultiOutputRegressor`), forçando alvos dinâmicos estritos multivariáveis para que o modelo calcule em um único pulso tanto o array de `_h1` quanto o array `_h2`.
+- **Avaliação (Métrica Nativa):** Impressão automatizada do Mean Absolute Error (MAE) no conjunto Split-Test (Últimos 10% do DF temporal).
+- **Serialização Estática:** A matriz final ajustada exporta o dump binário em `.joblib` junto de seu instanciador respectivo de Scalers multidimensionais.
 
-Tudo coexiste sem fricção mantendo as correntes hídricas de Rio Grande preditivas de forma matematicamente infalível.
+---
+
+### Módulo C: Motor de Inferência On-Demand (`main_v7.py`)
+Este submódulo corresponde à subida em Produção de Machine Learning, desenhado sob micro-rotinas de 15 a 15 min de agendamento em cron job. Executa e responde ao Frontend com acoplamento final a bases transacionais.
+
+**Fluxo Técnico de Deploy:**
+1. **Fetch Temporal de Janela Restrita:** Capta no GBQ estritas `48` horas de logs passados estabilizados para compor os denominados Rolling Statistics (médias de Inércia Física - Lags e MA).
+2. **Fetch Predictivo Externo:** Dispara via HTTP Rest API as requisições sincrônicas oficiais nas Chaves Prêmium Preditivas (`OpenWeather OneCall` e `Open-Meteo`), capturando vetores climáticos das Exatas próximas 5 horas `(t+1 a t+5)`.
+3. **Pivoteamento Virtual (DataFrame Appending):** Constroi Arrays virtuais nulos e concatenados (Linhas inferiorizadas) simulando as 5 horas estritas onde a "correnteza d'água" carente encontra-se vazia, mas as features mapeadas das API já suportam medição densa de Clima.
+4. **Vetorização In-Loco Combinada:** Em vez de mapeamento isolado for loop, por encadeamento Pandas as colunas `meteo_cols.shift(-lead)` (Shift Reativo) agrupam imediatamente essas 5 colunas do Futuro e injetam nas variáveis atadas ao index matriz `T0`.
+5. **Inferência Pura Matemática:** Entrega-se a matriz preenchida (Dimensão Fixa = Número Total do Scaler Base) para Predict. Recebe de volta o Score em Float Absoluto para o tempo `T+1` e `T+2`.
+6. **Inserção Cíclica Consolidada (MERGE SQL):** Envio dos logs na tabela de monitoramento contendo a heurística de Validação da Praticagem: (`Δt entre predição e timestamp atual situar-se entre 90 a 150min congela o registro de fato em 'Primeiro Cálculo' oficial e inalterável do painel BI`). Evita anomalias em dashboard.
+
+A V7 encerra a necessidade temporal e sequencial da retroalimentação dos cálculos do canal provada por recursão de inércia e escala de performance da rede por meio integral de Forçamentos de Leds Preditivos Físicos da atmosfera adjacente.
