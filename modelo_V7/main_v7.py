@@ -1,9 +1,11 @@
 # %% [markdown]
-# # Previsão de Correnteza V7 — Inferência em Produção (Foco no Futuro)
+# # Previsão de Correnteza V7 — Inferência em Produção (Lógica Exclusiva Walk-Forward)
 # 
-# Diferente da V6 que atualizava lags recursivamente "no escuro" para os climas futuros,
-# a V7 traz o "Amanhã" direto do OpenWeather e Open-Meteo como features puras ("Leads"). 
-# A rede agora enxerga 5 horas a frente num relance e entrega Correnteza +1h e +2h absolutas.
+# A V7 tem a proeza de utilizar o clima do futuro nas features ("Leads"). 
+# Para suportar 6 horas de previsão (H1 a H6) através de um modelo restrito a saídas curtas,
+# injetamos uma recursão: Ele calcula o H1 utilizando o clima Lead. Após isso, 
+# o resultado é Injetado no próprio Passado da Matriz, o script caminha 1h para frente 
+# e ele recalcula usando a "Inércia Prevista" associada ao clima verdadeiro futuro!
 
 import os, sys, time, requests, joblib, warnings
 import pandas as pd
@@ -17,7 +19,7 @@ if sys.stdout.encoding != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 print("==========================================================")
-print("  V7 — INFERÊNCIA DE CORRENTEZA (LEADS CLIMÁTICOS)")
+print("  V7 — INFERÊNCIA RECURSIVA [6 HORAS] (LEADS CLIMÁTICOS)")
 print("==========================================================")
 
 # ====================================================================================
@@ -51,7 +53,7 @@ bq_client = bigquery.Client(credentials=credentials, project=PROJECT_ID)
 
 
 # ====================================================================================
-# 2. CAPTURA DOS DADOS (O PASSADO DA BOIA + O FUTURO DA ATMOSFERA)
+# 2. CAPTURA DOS DADOS (O PASSADO + 12 HORAS TENSAS DE FUTURO)
 # ====================================================================================
 print("\n[2/5] Buscando Dados de Alta Frequência...")
 
@@ -81,10 +83,8 @@ df_hist["datahora"] = pd.to_datetime(df_hist["datahora"])
 df_hist = df_hist.sort_values("datahora").reset_index(drop=True)
 print(f"  ✓ Boia carregada: Último timestamp real foi {df_hist['datahora'].iloc[-1]}")
 
-# Identificador do T0 
 agora_hora = pd.Timestamp.now().floor('H')
 if df_hist['datahora'].iloc[-1] < agora_hora:
-    # Se a boia tá levemente atrasada, nós replicamos a última leitura na HORA ATUAL (inércia base t0)
     ultima = df_hist.iloc[-1:].copy()
     ultima['datahora'] = agora_hora
     df_hist = pd.concat([df_hist, ultima], ignore_index=True)
@@ -93,8 +93,7 @@ else:
     t0_hora = df_hist['datahora'].iloc[-1]
 print(f"  ✓ Instante Base de Lançamento (T0): {t0_hora}")
 
-
-# 2B: O Futuro da Atmosfera (OpenWeather)
+# 2B: O Futuro do Clima Atmosférico (+12H suportando o range de Lags da Previsão Longa)
 OW_API_KEY = "10fe60f23364376f39951ae7c07d0007"
 lat_rg, lon_rg = -32.035, -52.0986 
 try:
@@ -114,20 +113,22 @@ try:
             "hi_temp": h.get("feels_like")
         })
     df_ow = pd.DataFrame(rows_ow)
-    # Pegamos pro futuro (T0 + 1 até T0 + 5)
-    df_ow_futuro = df_ow[(df_ow["datahora"] > t0_hora) & (df_ow["datahora"] <= t0_hora + pd.Timedelta(hours=5))].copy()
+    # A V7 agora exige esticar o futuro: Precisamos simular 6 horas p/ frente
+    # Mas como rodamos features que sugam "lead5", precisamos que a janela Openweather seja grande o suficiente!
+    # Se queremos T+6 buscando Lead5, precisaremos que exista T+11!
+    df_ow_futuro = df_ow[(df_ow["datahora"] > t0_hora) & (df_ow["datahora"] <= t0_hora + pd.Timedelta(hours=14))].copy()
 except Exception as e:
     print(f"  ⚠ Erro OpenWeather: {e}")
     df_ow_futuro = pd.DataFrame()
 
-# 2C: O Futuro da Chuva (Open-Meteo)
+# 2C: O Futuro da Chuva (+12H)
 rain_frames = []
 try:
     for nome, lat, lon in CIDADES:
         r = requests.get(
             "https://api.open-meteo.com/v1/forecast",
             params={"latitude": lat, "longitude": lon, "hourly": "precipitation", 
-                    "past_hours": 48, "forecast_hours": 6, "timezone": "America/Sao_Paulo"},
+                    "past_hours": 48, "forecast_hours": 15, "timezone": "America/Sao_Paulo"},
             timeout=15
         )
         r.raise_for_status()
@@ -147,131 +148,118 @@ if rain_frames:
         df_rain = df_rain.join(extra, how="outer")
     df_rain = df_rain.reset_index().rename(columns={"time": "datahora"})
 
-# Cruza chuva com histórico
 if not df_rain.empty:
     df_hist["datahora_h"] = df_hist["datahora"].dt.floor("H")
     df_rain["datahora_h"] = df_rain["datahora"].dt.floor("H")
     df_hist = df_hist.merge(df_rain.drop(columns=["datahora"]), on="datahora_h", how="left")
     df_hist = df_hist.drop(columns=["datahora_h"])
-    # Mesma coisa pra chuva do futuro
+    
     df_ow_futuro["datahora_h"] = df_ow_futuro["datahora"].dt.floor("H")
     df_ow_futuro = df_ow_futuro.merge(df_rain.drop(columns=["datahora"]), on="datahora_h", how="left")
     df_ow_futuro = df_ow_futuro.drop(columns=["datahora_h"])
 
-# Se falhar algo da chuva, forçamos zeros 
 col_chuvas = [f"rain_{c[0]}" for c in CIDADES]
 for col in col_chuvas:
-    if col not in df_hist.columns:
-        df_hist[col] = 0.0
-    if not df_ow_futuro.empty and col not in df_ow_futuro.columns:
-        df_ow_futuro[col] = 0.0
+    if col not in df_hist.columns: df_hist[col] = 0.0
+    if not df_ow_futuro.empty and col not in df_ow_futuro.columns: df_ow_futuro[col] = 0.0
 
 # ====================================================================================
-# 3. GERAÇÃO FANTASMA DE HORIZONTES PARA GERAR LEADS
-# A sacada máxima: Vamos criar um painel temporal único "df_live".
-# Com as 5 linhas do "futuro" coladas em baixo da nossa linha atual "T0", 
-# usaremos Numpy `.shift(-N)` na raiz de T0 e ele buscará a atmosfera sozinha.
+# 3. CONSTRUINDO A GRADE HÍBRIDA GLOBAL (PASSADO REAL E VERDADES ATMOSFÉRICAS)
 # ====================================================================================
-print("\n[3/5] Compilando Grade de Tensão Temporal (T-48... T0... T+5)...")
-
-# Assegura existência de todas as colunas no futuro com NaN
+print("\n[3/5] Organizando Linha do Tempo e Setorializando Vento...")
 for col in df_hist.columns:
     if col not in df_ow_futuro.columns:
         df_ow_futuro[col] = np.nan
 
-# Empilha tudo (Passado Real + Futuro Fictício)
 df_live = pd.concat([df_hist, df_ow_futuro], ignore_index=True)
 
-# Aplica Bússola Setorial (0-360 -> 0-15) nos ângulos
+# Aplica Bússola
 for col in ["direcao_6m_deg", "direcao_superficie_deg", "direcao_3m_deg", "vento_num"]:
     if col in df_live.columns:
         df_live[col] = pd.to_numeric(df_live[col], errors='coerce')
         df_live[col] = (df_live[col] / 22.5).round() % 16
 
-# Trata vetores nulos
 cols_conv = df_live.columns.drop("datahora", errors="ignore")
 df_live[cols_conv] = df_live[cols_conv].apply(pd.to_numeric, errors="coerce").astype("float32")
-# Prenche campos vazios fantasma (do painel inferior) com ultimo valor (Inércia provisória se algo falhar)
-df_live.fillna(method="ffill", inplace=True)
+df_live.fillna(method="ffill", inplace=True) 
 df_live.fillna(0.0, inplace=True)
 
 
 # ====================================================================================
-# 4. FEATURE ENGINEERING PREDITIVO (CONSTRUÇÃO DE T0)
-# Vamos replicar a engenharia Exata que construiu ML.xtrain_horario_t_2026_V7
+# 4. LOOP V7 "WALK-FORWARD" (FEATURIZAÇÃO CONTÍNUA RECURSIVA P/ 6 HORAS)
 # ====================================================================================
+print("\n[4/5] Executando Lógica de Previsão Recursiva (+6H)...")
+
 base_cols = [c for c in df_live.columns if c != "datahora"]
 rain_feat_cols = [c for c in base_cols if c.startswith("rain_")]
 meteo_cols = ["hi_temp", "out_hum", "wind_speed", "vento_num", "bar"] + rain_feat_cols
 
-X_parts = []
-# 4.1 Lags
-for lag in range(1, 6):
-    X_parts.append(df_live[base_cols].shift(lag).add_suffix(f"_lag{lag}"))
-# 4.2 MAs
-for w in [3, 6]:
-    X_parts.append(df_live[base_cols].rolling(w).mean().shift(1).add_suffix(f"_ma{w}"))
-for w in [12, 24, 48]:
-    X_parts.append(df_live[rain_feat_cols].rolling(w).mean().shift(1).add_suffix(f"_ma{w}"))
-# 4.3 LEADS
-for lead in range(1, 6):
-    X_parts.append(df_live[meteo_cols].shift(-lead).add_suffix(f"_lead{lead}"))
+df_previsoes_finais = []
+idx_t0 = len(df_hist) - 1
 
-X_live_panel = pd.concat(X_parts, axis=1)
-
-# Onde está o T0? 
-# Como adicionamos as 5 linhas fantasmas no fundo de df_live, nosso T0 verdadeiro
-# está ancorado a exatos 5 índices da base! (.iloc[-6])
-idx_t0 = len(df_live) - 6
-
-# Validando
-linha_t0 = df_live.loc[idx_t0, "datahora"]
-print(f"  ✓ Extraindo Vetorial de {linha_t0} (O T0 Absoluto)")
-
-X_t0_bruto = X_live_panel.iloc[idx_t0].fillna(0).values.astype("float32")
-
-# Dimension validation against Scaler
-if len(X_t0_bruto) < scaler_X.n_features_in_:
-    X_t0_bruto = np.pad(X_t0_bruto, (0, scaler_X.n_features_in_ - len(X_t0_bruto)), constant_values=0)
-elif len(X_t0_bruto) > scaler_X.n_features_in_:
-    X_t0_bruto = X_t0_bruto[:scaler_X.n_features_in_]
-
-# ====================================================================================
-# 5. INFERÊNCIA CEGA EM ALTA PERFOMANCE
-# ====================================================================================
-print("\n[4/5] Executando Matemática de Previsão...")
-
-# Scala e Injeta
-X_n = scaler_X.transform(X_t0_bruto.reshape(1, -1))
-pred_n = model_lgbm.predict(X_n)
-pred_raw = scaler_y.inverse_transform(np.atleast_2d(pred_n))[0]
-
-# O Lightgbm _V7 devolveu um array "Flat" na mesma ordem dos Ys que criamos:
-# y_cols = ['int6_h1', 'intSup_h1', 'int3_h1', 'int6_h2', 'intSup_h2', 'int3_h2']
-# Precisamos das Posições de Superfície (Indice 1 = H1, Indice 4 = H2)
-intensidade_sup_h1 = pred_raw[1]
-intensidade_sup_h2 = pred_raw[4]
-
-datahora_h1 = t0_hora + pd.Timedelta(hours=1)
-datahora_h2 = t0_hora + pd.Timedelta(hours=2)
-
-df_previsoes_finais = pd.DataFrame([
-    {"datahora_alvo": datahora_h1, "previsao_correnteza_superficie": round(float(intensidade_sup_h1), 4), "horizonte": "+1h"},
-    {"datahora_alvo": datahora_h2, "previsao_correnteza_superficie": round(float(intensidade_sup_h2), 4), "horizonte": "+2h"},
-])
-
-print("\n  ┌─────────────────────┬───────────┬────────────────────────────┐")
+print("  ┌─────────────────────┬───────────┬────────────────────────────┐")
 print("  │   Hora Alvo         │ Horizonte │ Previsão V7 Result   (kt)  │")
 print("  ├─────────────────────┼───────────┼────────────────────────────┤")
-for _, r in df_previsoes_finais.iterrows():
-    print(f"  │ {r['datahora_alvo']}    │   {r['horizonte']}   │          {r['previsao_correnteza_superficie']:>8.4f}            │")
-print("  └─────────────────────┴───────────┴────────────────────────────┘")
 
+for step in range(6): 
+    # O ponteiro de qual hora o modelo "está vivendo" avança:
+    idx_curr = idx_t0 + step
+    
+    # ----------------------------------------------------
+    # ENGENHARIA DE FEATURES "ON THE FLY" (Usando todo o DataFrame Live com a Água Injetada)
+    # ----------------------------------------------------
+    X_parts = []
+    # 4.1 Lags (Vão puxar a inércia, se houver injeção do laço passado eles já usam!)
+    for lag in range(1, 6): X_parts.append(df_live[base_cols].shift(lag).add_suffix(f"_lag{lag}"))
+    # 4.2 MAs
+    for w in [3, 6]: X_parts.append(df_live[base_cols].rolling(w).mean().shift(1).add_suffix(f"_ma{w}"))
+    for w in [12, 24, 48]: X_parts.append(df_live[rain_feat_cols].rolling(w).mean().shift(1).add_suffix(f"_ma{w}"))
+    # 4.3 LEADS do Clima (Nunca inventados, o Pandas busca eles direto das próximas linhas reais das APIs!)
+    for lead in range(1, 6): X_parts.append(df_live[meteo_cols].shift(-lead).add_suffix(f"_lead{lead}"))
+    
+    X_live_panel = pd.concat(X_parts, axis=1)
+
+    # Coleta a Feature pronta no Index atual de loop
+    X_tcurr = X_live_panel.iloc[idx_curr].fillna(0).values.astype("float32")
+    if len(X_tcurr) < scaler_X.n_features_in_:
+        X_tcurr = np.pad(X_tcurr, (0, scaler_X.n_features_in_ - len(X_tcurr)), constant_values=0)
+    elif len(X_tcurr) > scaler_X.n_features_in_:
+        X_tcurr = X_tcurr[:scaler_X.n_features_in_]
+
+    # INFERÊNCIA DO MODELO
+    X_n = scaler_X.transform(X_tcurr.reshape(1, -1))
+    pred_raw = scaler_y.inverse_transform(model_lgbm.predict(X_n))[0]
+
+    # O alvo H1 (que é T+1 relativo ao Index Curr) sai no array pred_raw: [6m, sup, 3m, ...]
+    out_6m = pred_raw[0]
+    out_sup = pred_raw[1]
+    out_3m = pred_raw[2]
+
+    # INJETAR AS PREVISÕES VIRTUAIS NA CÉLULA DA ÁGUA FUTURA
+    # Assim, no próximo step desse loop, o "lag1" dele será EXATAMENTE essa predição!
+    df_live.loc[idx_curr + 1, "intensidade_6m_kt"] = out_6m
+    df_live.loc[idx_curr + 1, "intensidade_superficie_kt"] = out_sup
+    df_live.loc[idx_curr + 1, "intensidade_3m_kt"] = out_3m
+
+    # SALVAR A PRINT DA PREDIÇÃO
+    datahora_alvo = df_live.loc[idx_curr + 1, "datahora"]
+    previsao_exata = round(float(out_sup), 4)
+
+    df_previsoes_finais.append({
+        "datahora_alvo": datahora_alvo,
+        "previsao_correnteza_superficie": previsao_exata,
+        "horizonte": f"+{step+1}h"
+    })
+    
+    print(f"  │ {datahora_alvo}    │   +{step+1}H     │          {previsao_exata:>8.4f}            │")
+
+print("  └─────────────────────┴───────────┴────────────────────────────┘")
+df_previsoes_finais = pd.DataFrame(df_previsoes_finais)
 
 # ====================================================================================
 # 6. ESCRITA NO BIGQUERY BIGQUERY — MERGE
 # ====================================================================================
-print("\n[5/5] Subindo Inferências com Checksum Primeiro_Calculo para BQ...")
+print("\n[5/5] Subindo Lote de 6 Injeções com Checksum Primeiro_Calculo para BQ...")
 
 df_temp = df_previsoes_finais[["datahora_alvo", "previsao_correnteza_superficie"]].copy()
 df_temp["datahora_alvo"] = pd.to_datetime(df_temp["datahora_alvo"]).dt.tz_localize(None)
@@ -311,10 +299,10 @@ try:
     )
     """
     bq_client.query(merge_sql).result()
-    print("  ✓ MERGE ATIVO: Gravação Inteligente concluída.")
+    print("  ✓ MERGE ATIVO: Gravação Inteligente concluída com sucesso.")
 except Exception as e:
     print(f"  ⚠ Erro Crítico no BQ Merge: {e}")
 
 print("\n" + "="*58)
-print(" ✅ V7 PRODUZIDA E DEPLOYADA AO VIVO ")
+print(" ✅ PIPELINE V7 RECURSIVO (LAÇO +6 HORAS) FINALIZADO AO VIVO")
 print("="*58)
