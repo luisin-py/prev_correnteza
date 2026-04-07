@@ -94,7 +94,7 @@ else:
 print(f"  ✓ Instante Base de Lançamento (T0): {t0_hora}")
 
 # 2B: O Futuro do Clima Atmosférico (+12H suportando o range de Lags da Previsão Longa)
-OW_API_KEY = "10fe60f23364376f39951ae7c07d0007"
+OW_API_KEY = "COLOQUE_SUA_CHAVE_OPENWEATHER_AQUI"
 lat_rg, lon_rg = -32.035, -52.0986 
 try:
     url_ow = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat_rg}&lon={lon_rg}&exclude=current,minutely,daily,alerts&units=metric&appid={OW_API_KEY}"
@@ -306,3 +306,4 @@ except Exception as e:
 print("\n" + "="*58)
 print(" ✅ PIPELINE V7 RECURSIVO (LAÇO +6 HORAS) FINALIZADO AO VIVO")
 print("="*58)
+

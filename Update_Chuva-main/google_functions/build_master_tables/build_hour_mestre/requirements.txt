@@ -1,0 +1,15 @@
+# ─── libs de base ──────────────────────────────────────────────
+pandas>=2.2.2
+requests>=2.32.2
+
+# ─── BigQuery (client + extras) ────────────────────────────────
+#  • storage   → ativa BigQuery Storage API (stream mais rápido)
+#  • pandas    → carrega/gera DataFrames sem precisar instalar nada extra
+google-cloud-bigquery[storage,pandas]>=3.12.0
+
+# A partir das próximas versões o pandas->BigQuery exigirá este pacote
+pandas-gbq>=0.26.1          # silencia o FutureWarning
+
+# ─── tipos auxiliares ──────────────────────────────────────────
+db-dtypes                   # colunas NUMERIC/GEOGRAPHY em DataFrames
+pyarrow>=15.0.2             # usado internamente pela API Storage

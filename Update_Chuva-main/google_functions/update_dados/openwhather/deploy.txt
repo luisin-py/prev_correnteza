@@ -1,0 +1,42 @@
+Criar um gatilho:
+# se ainda não existir
+gcloud pubsub topics create openweather-trigger
+
+
+
+Deploy:
+gcloud functions deploy openweather-collector-v2 \
+  --gen2 \
+  --region southamerica-east1 \
+  --runtime python311 \
+  --source . \
+  --entry-point run_script \
+  --memory 512MB \
+  --timeout 60s \
+  --trigger-topic openweather-trigger \
+  --set-env-vars "OPENWEATHER_API_KEY=COLOQUE_SUA_CHAVE_OPENWEATHER_AQUI,BQ_TABLE_ID=local-bliss-359814.wherehouse.dados_openwhather"
+
+
+Agendar a execução automática (Cloud Scheduler):
+gcloud scheduler jobs create pubsub openweather-every-5min \
+  --schedule "*/5 * * * *" \
+  --topic openweather-trigger \
+  --message-body "{}" \
+  --time-zone "America/Sao_Paulo" \
+  --location southamerica-east1
+
+
+testar o start:
+gcloud pubsub topics publish openweather-trigger --message="start"
+
+ver logas:
+gcloud functions logs read openweather-collector --region=southamerica-east1
+
+
+
+Consulta BQ:
+SELECT *
+FROM `local-bliss-359814.wherehouse.dados_openwhather`
+ORDER BY timestamp_utc DESC
+LIMIT 50
+

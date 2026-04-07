@@ -1,0 +1,215 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\geometry{margin=2.3cm}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{lmodern}
+\usepackage{xcolor}
+
+\title{Painel Meteorológico da Praticagem \\ \large Documentação de Componentes, Funções e Utilidades}
+\author{Projeto Correnteza e Maré}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Visão Geral}
+O painel meteorológico foi desenvolvido em \textbf{Vue 3} (Composition API) com \textbf{Quasar Framework} para UI, \textbf{Pinia} para estado e \textbf{Chart.js} para visualizações. O objetivo é oferecer, em um só lugar, condições atuais, históricos e previsões (maré, vento, correnteza, visibilidade), com \textit{features} de comparação entre fontes e controles de configuração persistentes.
+
+A página principal (\texttt{<q-page>}) organiza os módulos:
+\begin{itemize}[leftmargin=1.2em]
+  \item \texttt{WeatherView} (cartão principal de condições atuais) e \texttt{WeatherDetails} (detalhes complementares);
+  \item \texttt{TideForecastComparison} (Marinha x Medida x GA);
+  \item \texttt{CurrentComparison} (correnteza histórica por profundidade);
+  \item \texttt{CurrentForecastComparison} (histórico x previsão, por profundidade);
+  \item \texttt{OpenWeatherForecast} e \texttt{WeatherForecastVisibility} (grade e cartões de previsão, com foco em visibilidade e fenômenos);
+  \item \texttt{VerticalCurrentProfile} (perfil vertical de correnteza; opcional/comentado);
+  \item \texttt{FooterPraticagem} (rodapé).
+\end{itemize}
+
+\section{Fluxo de Dados (Pinia Store)}
+Na montagem da página, o \texttt{useWeatherStore} é acionado para popular o estado:
+\begin{itemize}[leftmargin=1.2em]
+  \item \verb|fetchLast()|: últimas leituras (\emph{condições atuais});
+  \item \verb|fetchHistory()|: histórico para gráficos e tabelas;
+  \item \verb|fetchForecast()|: previsão (maré, GA, etc.);
+  \item \verb|fetchOpenWeatherForecast()|: previsão OpenWeather agrupada por dia;
+  \item \verb|fetchCorrenteza5Min(288)|: série de 5 min (últimas 24 h);
+  \item \verb|fetchCorrentezaHourly(168)|: série horária (últimos 7 dias).
+\end{itemize}
+As configurações de usuário são persistidas em \texttt{localStorage} para preservar preferências entre sessões.
+
+\section{Componentes e Funcionalidades}
+
+\subsection{WeatherView}
+\textbf{Finalidade:} cartão principal das \emph{condições atuais} (estação meteorológica), com status operacional, leituras de vento, temperatura, pressão, umidade, maré real e medidores (\emph{gauges}) para vento e correnteza.
+
+\textbf{Elementos chave:}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Leituras:} Temperatura e sensação térmica; pressão (hPa/mb), umidade (\%), vento (nós + direção), maré real (\texttt{altura\_real\_getmare}).
+  \item \textbf{Status operacional:} \texttt{PRATICÁVEL}, \texttt{IMPRATICÁVEL TOTAL}, etc., com classes de cor (\texttt{weather-status-*}) para leitura rápida.
+  \item \textbf{Gauges:} 
+  \begin{itemize}
+    \item \texttt{GaugeRelogio}: correnteza (ex.: 3\,m), intensidade em nós, direção em graus.
+    \item \texttt{WindRose}: rosa dos ventos (direção e intensidade).
+  \end{itemize}
+  \item \textbf{Configurações (diálogo \texttt{WeatherViewConfig}):} alternar exibição de vento/correnteza, campos (temperatura, pressão, umidade, maré), tamanho dos relógios, idioma das siglas (PT/EN) e paleta de status. Persistência em \texttt{localStorage} com chave \verb|weatherPanelConfig|.
+  \item \textbf{Conversões:} mapeamento \emph{cardinal $\leftrightarrow$ graus} para direção do vento; rótulos preferem sigla de backend quando disponível.
+\end{itemize}
+
+\textbf{Uso prático:} dar, em um único card, o \emph{quadro atual} com leitura e estado do canal/barra, complementado por direção/intensidade de vento e correnteza para decisão imediata.
+
+\subsection{WeatherDetails}
+\textbf{Finalidade:} expandir detalhes das condições atuais (ex.: estações, localização, observações, campos derivados). 
+\textbf{Observação:} a implementação pode variar; normalmente complementa o \texttt{WeatherView} com campos menos críticos para o \emph{at-a-glance}.
+
+\subsection{TideForecastComparison}
+\textbf{Finalidade:} comparar \textbf{Marinha} (oficial), \textbf{Maré medida} (real) e \textbf{Previsão GA} (modelo próprio) ao longo do tempo.
+
+\textbf{Recursos:}
+\begin{itemize}[leftmargin=1.2em]
+  \item Modos: \texttt{Gráfico Linha}, \texttt{Gráfico Barras}, \texttt{Tabela}.
+  \item Seleção de linhas visíveis: \{\texttt{marinha}, \texttt{real}, \texttt{ga}\}.
+  \item Banda de incerteza:
+  \begin{itemize}
+    \item \textbf{GA}: banda \(\pm 0{,}15\) m (duas curvas, com preenchimento entre elas ao ativar).
+    \item Outras séries: faixa min--max da janela.
+  \end{itemize}
+  \item Navegação temporal: janela deslizante (tamanho e passo definidos), rótulos de horário.
+  \item Tooltip custom (posicionamento fixo ou \emph{follow}).
+  \item Preferências persistidas em \verb|tideCompareConfig|.
+\end{itemize}
+
+\textbf{Uso prático:} validação das previsões contra a medição, calibragem visual do erro, avaliação de tendência e preparação para janelas operacionais.
+
+\subsection{CurrentComparison}
+\textbf{Finalidade:} analisar o \textbf{histórico de correnteza} por profundidade (ex.: 1{,}5\,m, 3\,m, 6\,m) no período selecionado.
+
+\textbf{Recursos:}
+\begin{itemize}[leftmargin=1.2em]
+  \item Modos: \texttt{linha}, \texttt{barras}, \texttt{tabela}.
+  \item Linhas configuráveis: \{\texttt{1{,}5 m}, \texttt{3 m}, \texttt{6 m}\}.
+  \item Banda (min--max) opcional para cada série.
+  \item Navegação por janela (cursor e passo) com rótulos de horas.
+  \item Cabeçalho com \emph{cards} dos \emph{últimos valores} por profundidade.
+  \item Preferências em \verb|tideCompareCorrConfig|.
+\end{itemize}
+
+\textbf{Uso prático:} inspeção rápida do regime de corrente por camada para planejar manobras por calado e entender variações no período recente.
+
+\subsection{CurrentForecastComparison}
+\textbf{Finalidade:} comparar \textbf{histórico (medido)} vs. \textbf{previsão de correnteza} por profundidade (múltiplos cartões/gráficos, um por nível).
+
+\textbf{Fontes e parâmetros (no componente):}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textit{Endpoints} (exemplos do código): 
+  \verb|get_table_mestre_5min_tratada_bq.php| (histórico 5\,min),
+  \verb|get_prev_correnteza_forecast_bq.php| (previsões 5\,min/horária).
+  \item Profundidades suportadas: superfície, 1{,}5 m, 3 m, 6 m, 7{,}5 m, 9 m, 10{,}5 m, 12 m, 13{,}5 m (conjunto configurável).
+  \item \textbf{Banda de previsão}: \(\pm 0{,}55\) tk (configurável no componente).
+  \item \textbf{Fonte da previsão}: alternância entre \texttt{5-min} e \texttt{horária}.
+\end{itemize}
+
+\textbf{Recursos de UI:}
+\begin{itemize}[leftmargin=1.2em]
+  \item Mini-\emph{cards} exibem \textbf{valor histórico} e \textbf{valor previsto} no ponto destacado (\emph{scrub}) ou no último ponto.
+  \item Janela temporal individual por profundidade (controles próprios).
+  \item \texttt{localStorage} para altura do gráfico, pontos, banda (modo: linhas/fundo/ambos).
+\end{itemize}
+
+\textbf{Uso prático:} avaliar \emph{erro instantâneo} entre medição e previsão por profundidade e ajustar a confiança por camada e horizonte (5\,min vs. horário).
+
+\subsection{OpenWeatherForecast (\texttt{WeatherForecastView})}
+\textbf{Finalidade:} exibir a \textbf{previsão OpenWeather} em formatos \texttt{Grade}, \texttt{Cartões} ou \texttt{Linha}, com seleção de \textbf{dia} e \textbf{modo de visualização}.
+
+\textbf{Destaques:}
+\begin{itemize}[leftmargin=1.2em]
+  \item Agrupamento por dia com correção de fuso para \texttt{UTC-3} (ex.: Brasil).
+  \item \textit{Views} independentes (grade/tabela/cartões/linha) para diferentes preferências de leitura.
+  \item \texttt{cityLabel} e lista de dias \texttt{availableDays}.
+\end{itemize}
+
+\textbf{Uso prático:} visão geral da meteorologia por \emph{faixas horárias} do dia operacional selecionado.
+
+\subsection{WeatherForecastVisibility}
+\textbf{Finalidade:} visão focada em \textbf{visibilidade e fenômenos} com dois modos:
+\texttt{Detalhado} (grade por dia) e \texttt{Compacto} (resumo diário).
+
+\textbf{Recursos:}
+\begin{itemize}[leftmargin=1.2em]
+  \item Seletor \texttt{Detalhado/Compacto};
+  \item \textbf{Dias disponíveis} (\texttt{availableDays}) e \textbf{dia selecionado} (\texttt{selectedDay});
+  \item Grade com variáveis: fenômeno (código OpenWeather), probabilidade de nevoeiro estimada, temperatura/sensação, pressão, umidade, visibilidade, vento (direção, nós e rajada).
+  \item Componente auxiliar \texttt{WindMiniClock} para direção/velocidade do vento por célula.
+\end{itemize}
+
+\textbf{Uso prático:} destacar \emph{janelas de baixa visibilidade}, fenômenos críticos (nevoeiro, chuva, trovoadas) e suportar a decisão de \emph{go/no-go}.
+
+\subsection{VerticalCurrentProfile}
+\textbf{Finalidade:} exibir o \textbf{perfil vertical de correnteza} com três visores:
+\texttt{Barras}, \texttt{Gráfico SVG} e \texttt{Tabela}.
+
+\textbf{Recursos:}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Seleção de profundidades} visíveis (dinâmica, detectada a partir das chaves disponíveis em \texttt{weatherLast});
+  \item \textbf{Escala} do card (zoom) e \textbf{modo de visualização} ajustáveis via diálogo;
+  \item Códigos de \textbf{enchente} e \textbf{vazante} por cor/posição (ex.: enchente para a esquerda, vazante para a direita);
+  \item Persistência em \verb|currentBarProfileConfig| e \verb|currentProfileConfig|.
+\end{itemize}
+
+\textbf{Uso prático:} leitura \emph{instantânea} da \textbf{intensidade por camada} e do \textbf{sentido predominante}, útil para avaliar interação com o calado/lastro e planejar janela.
+
+\subsection{FooterPraticagem}
+\textbf{Finalidade:} rodapé do painel (informações institucionais, créditos, versão ou links úteis). Mantém padronização visual e encerra o layout.
+
+\section{Preferências e Persistência}
+\begin{center}
+\begin{tabular}{>{\ttfamily}p{0.38\linewidth} p{0.55\linewidth}}
+\toprule
+\textnormal{Chave no \texttt{localStorage}} & Campos/uso principal \\
+\midrule
+weatherPanelConfig & Mostrar/ocultar campos (vento, correnteza, temperatura, pressão, umidade, maré), idioma das siglas, tamanho dos relógios, paleta de status. \\
+currentProfileConfig & Idioma das siglas de direção, tamanho dos relógios, lista de profundidades visíveis. \\
+currentBarProfileConfig & Escala do card/gráfico, profundidades selecionadas, modo de visualização (\texttt{bars}|\texttt{current-graph}|\texttt{table}). \\
+tideCompareConfig & Altura do gráfico, linhas visíveis (Marinha/Real/GA), banda e \emph{tooltip}. \\
+tideCompareCorrConfig & Altura, pontos, banda min--max e linhas visíveis (1{,}5\,m, 3\,m, 6\,m). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Boas Práticas de Uso}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Escolha do modo de cada gráfico:} \emph{linha} para tendência, \emph{barras} para comparação pontual e \emph{tabela} para leitura discreta/relatórios.
+  \item \textbf{Banda de incerteza:} ative quando precisar avaliar \emph{confiança} e \emph{margem operacional}; desative para foco na linha central.
+  \item \textbf{Janelas temporais:} utilize os botões de navegação para ajustar o período de análise (ex.: pré-janela de manobra).
+  \item \textbf{Configurações persistidas:} ajuste uma vez (ex.: profundidades relevantes ao calado típico) e mantenha consistência entre turnos.
+\end{itemize}
+
+\section{Extensões e Customizações}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Novas profundidades/variáveis:} seguir o padrão de chaves (\texttt{intensidade\_\{prof\}} e \texttt{direcao\_\{prof\}}) para serem detectadas automaticamente nos perfis.
+  \item \textbf{Novas fontes de previsão:} plugáveis nos comparativos (adicionando uma série/linha com cor e mapeando o campo no dataset).
+  \item \textbf{Alertas:} regras simples podem destacar condições críticas (ex.: vento $>$ limiar, nevoeiro provável, corrente extrema por camada).
+\end{itemize}
+
+\section{Checklist Operacional Rápido}
+\begin{enumerate}[leftmargin=1.2em]
+  \item Verificar \textbf{status} e \textbf{leituras atuais} em \texttt{WeatherView}.
+  \item Conferir \textbf{Marinha x Real x GA} em \texttt{TideForecastComparison} (ativar banda GA se necessário).
+  \item Analisar \textbf{correnteza por profundidade} em \texttt{CurrentComparison}.
+  \item Comparar \textbf{histórico vs. previsão de correnteza} por camada em \texttt{CurrentForecastComparison}.
+  \item Verificar \textbf{fenômenos/visibilidade} do período em \texttt{WeatherForecastVisibility} e \texttt{OpenWeatherForecast}.
+  \item (Opcional) Inspecionar o \textbf{perfil vertical} em \texttt{VerticalCurrentProfile}.
+\end{enumerate}
+
+\section*{Resumo}
+O painel reúne, em um único ambiente, condições atuais, históricos e previsões de maré, vento, correnteza e visibilidade, com comparações entre fontes e ferramentas de personalização por usuário. Os componentes foram desenhados para \textbf{rapidez de leitura}, \textbf{comparação direta} e \textbf{persistência de preferências}, apoiando decisões de praticagem em janelas operacionais restritas.
+
+\end{document}

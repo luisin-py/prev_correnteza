@@ -1,0 +1,269 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{fontawesome5}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{emoji}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\definecolor{cloudblue}{RGB}{93, 173, 226}
+\definecolor{bqred}{RGB}{212, 76, 71}
+\definecolor{pubsubpurple}{RGB}{155, 89, 182}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=cloudblue,
+    urlcolor=cloudblue,
+    citecolor=cloudblue
+}
+
+\title{\emoji{package} Pipeline de Coleta Meteorológica e Poluição do Ar – RG Pilots}
+\author{Equipe de Dados RG Pilots}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{tcolorbox}[colback=cloudblue!10!white, colframe=cloudblue, title=\faInfoCircle~Resumo do Pipeline]
+Este pipeline realiza a coleta a cada 5 minutos de múltiplos provedores de dados meteorológicos e de qualidade do ar, centraliza, normaliza e armazena em tabelas no \textcolor{bqred}{BigQuery}. Cada fonte/processo está isolado em uma \textbf{Cloud Function Gen2}, acionada via \textcolor{pubsubpurple}{Pub/Sub}, com agendamento pelo \faCalendar~Cloud Scheduler.
+\end{tcolorbox}
+
+\vspace{1em}
+
+% Arquitetura
+\section*{\faProjectDiagram~Arquitetura}
+
+\begin{itemize}[leftmargin=2em]
+    \item \faCloud~Cloud Functions Gen2 (Python 3.10/3.11)
+    \item \faPaperPlane~Pub/Sub para triggers
+    \item \faCalendarAlt~Cloud Scheduler para agendamento automático
+    \item \faDatabase~BigQuery como destino dos dados
+    \item \faBug~Logs detalhados para troubleshooting e auditoria
+\end{itemize}
+
+\vspace{1em}
+
+% Componentes
+\section*{\faListAlt~Visão Geral dos Componentes}
+
+\begin{tabular}{ | l | l | l | l | l | }
+\hline
+\textbf{Função} & \textbf{Fonte} & \textbf{Frequência} & \textbf{BigQuery Table} & \textbf{Trigger Pub/Sub} \\
+\hline
+\texttt{run\_script} & getMare, getControles, hidromares RG & 5 min & update\_rawdata\_5min & rgpilots-trigger \\
+\texttt{openweather-collector-v2} & OpenWeather (Weather) & 5 min & dados\_openwhather & openweather-trigger \\
+\texttt{openweather-air-pollution} & OpenWeather (AirPoll.) & 3 horas & dados\_openweather\_air\_pollution & openweather-air-pollution-trigger \\
+\texttt{openweather-forecast} & OpenWeather (Forecast) & 3 horas & dados\_openweather\_forecast & openweather-forecast-trigger \\
+\hline
+\end{tabular}
+
+\vspace{1em}
+
+\section*{\faRandom~Fluxo Resumido}
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textcolor{cloudblue}{\faCalendarAlt~Cloud Scheduler} agenda a publicação no Pub/Sub.
+    \item \textcolor{pubsubpurple}{\faPaperPlane~Pub/Sub} dispara a função específica.
+    \item \textcolor{cloudblue}{\faCloud~Função Python} coleta/processa dados e envia ao \textcolor{bqred}{BigQuery}.
+    \item \faDatabase~BigQuery armazena dados (deduplicação pode ocorrer via MERGE).
+    \item \faBug~Logs disponíveis para troubleshooting.
+\end{enumerate}
+
+\vspace{1em}
+
+% Detalhamento das Funções
+\section*{\faCog~Detalhamento das Funções}
+
+\subsection*{1️⃣~run\_script (Dados Meteorológicos RG Pilots)}
+\begin{itemize}
+    \item \textbf{Descrição:} Coleta dados meteorológicos de múltiplos providers (\texttt{controls}, \texttt{hidromares}, \texttt{getmare}) a cada 5 minutos.
+    \item \textbf{Destino:} Tabela BigQuery \texttt{local-bliss-359814.wherehouse.update\_rawdata\_5min}
+    \item \textbf{Destaques:}
+    \begin{itemize}
+        \item Deduplicação ocorre posteriormente no BigQuery via MERGE.
+        \item Normaliza fusos para UTC-3 (Brasília) e timestamps a cada 5 minutos.
+        \item Logging detalhado.
+    \end{itemize}
+\end{itemize}
+
+\begin{tcolorbox}[colback=gray!7!white, title=Deploy]
+\texttt{gcloud functions deploy run\_script \textbackslash \\
+  --entry-point run\_script \textbackslash \\
+  --runtime python310 \textbackslash \\
+  --trigger-topic rgpilots-trigger \textbackslash \\
+  --region=southamerica-east1 \textbackslash \\
+  --memory=512MB \textbackslash \\
+  --gen2}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=cloudblue!7!white, title=Testar]
+\texttt{gcloud pubsub topics publish rgpilots-trigger --message="\{\}"}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=bqred!7!white, title=Consultar dados]
+\texttt{SELECT * FROM \`local-bliss-359814.wherehouse.update\_rawdata\_5min\` \\
+ORDER BY timestamp DESC \\
+LIMIT 50;}
+\end{tcolorbox}
+
+\vspace{1em}
+
+\subsection*{2️⃣~openweather-collector-v2 (Tempo Atual - OpenWeather)}
+\begin{itemize}
+    \item \textbf{Descrição:} Coleta condições atuais do tempo para uma lista de cidades.
+    \item \textbf{Destino:} Tabela BigQuery \texttt{local-bliss-359814.wherehouse.dados\_openwhather}
+    \item \textbf{Configuração via env:} \texttt{OPENWEATHER\_API\_KEY} e \texttt{BQ\_TABLE\_ID}
+\end{itemize}
+
+\begin{tcolorbox}[colback=gray!7!white, title=Deploy]
+\texttt{gcloud functions deploy openweather-collector-v2 \textbackslash \\
+  --gen2 \textbackslash \\
+  --region southamerica-east1 \textbackslash \\
+  --runtime python311 \textbackslash \\
+  --source . \textbackslash \\
+  --entry-point run\_script \textbackslash \\
+  --memory 512MB \textbackslash \\
+  --timeout 60s \textbackslash \\
+  --trigger-topic openweather-trigger \textbackslash \\
+  --set-env-vars "OPENWEATHER\_API\_KEY=xxxx,BQ\_TABLE\_ID=local-bliss-359814.wherehouse.dados\_openwhather"}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=cloudblue!7!white, title=Agendamento]
+\texttt{gcloud scheduler jobs create pubsub openweather-every-5min \textbackslash \\
+  --schedule "*/5 * * * *" \textbackslash \\
+  --topic openweather-trigger \textbackslash \\
+  --message-body "\{\}" \textbackslash \\
+  --time-zone "America/Sao\_Paulo" \textbackslash \\
+  --location southamerica-east1}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=bqred!7!white, title=Consultar dados]
+\texttt{SELECT * FROM \`local-bliss-359814.wherehouse.dados\_openwhather\` \\
+ORDER BY timestamp\_utc DESC \\
+LIMIT 50;}
+\end{tcolorbox}
+
+\vspace{1em}
+
+\subsection*{3️⃣~openweather-air-pollution (Poluição do Ar)}
+\begin{itemize}
+    \item \textbf{Descrição:} Coleta índices de poluição do ar (lat/lon fixos).
+    \item \textbf{Destino:} Tabela BigQuery \texttt{local-bliss-359814.wherehouse.dados\_openweather\_air\_pollution}
+    \item \textbf{Configuração via env:} \texttt{OPENWEATHER\_API\_KEY}, \texttt{BQ\_TABLE\_ID}
+\end{itemize}
+
+\begin{tcolorbox}[colback=gray!7!white, title=Deploy]
+\texttt{gcloud functions deploy openweather-air-pollution \textbackslash \\
+  --gen2 \textbackslash \\
+  --region southamerica-east1 \textbackslash \\
+  --runtime python311 \textbackslash \\
+  --source . \textbackslash \\
+  --entry-point openweather\_airpollution \textbackslash \\
+  --memory 512MB \textbackslash \\
+  --timeout 60s \textbackslash \\
+  --trigger-topic openweather-air-pollution-trigger \textbackslash \\
+  --set-env-vars "OPENWEATHER\_API\_KEY=xxxx,BQ\_TABLE\_ID=local-bliss-359814.wherehouse.dados\_openweather\_air\_pollution,LOG\_LEVEL=1"}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=cloudblue!7!white, title=Agendamento]
+\texttt{gcloud scheduler jobs create pubsub openweather-air-pollution-job \textbackslash \\
+  --schedule "0 */3 * * *" \textbackslash \\
+  --topic openweather-air-pollution-trigger \textbackslash \\
+  --message-body "\{\}" \textbackslash \\
+  --time-zone "America/Sao\_Paulo" \textbackslash \\
+  --location southamerica-east1}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=bqred!7!white, title=Consultar dados]
+\texttt{SELECT * FROM \`local-bliss-359814.wherehouse.dados\_openweather\_air\_pollution\` \\
+ORDER BY timestamp\_utc DESC \\
+LIMIT 50;}
+\end{tcolorbox}
+
+\vspace{1em}
+
+\subsection*{4️⃣~openweather-forecast (Previsão do Tempo)}
+\begin{itemize}
+    \item \textbf{Descrição:} Coleta previsão de tempo futura (até 5 dias, cada 3h) para uma lista de cidades.
+    \item \textbf{Destino:} Tabela BigQuery \texttt{local-bliss-359814.wherehouse.dados\_openweather\_forecast}
+    \item \textbf{Configuração via env:} \texttt{OPENWEATHER\_API\_KEY}, \texttt{BQ\_TABLE\_ID}
+\end{itemize}
+
+\begin{tcolorbox}[colback=gray!7!white, title=Deploy]
+\texttt{gcloud functions deploy openweather-forecast \textbackslash \\
+  --gen2 \textbackslash \\
+  --region southamerica-east1 \textbackslash \\
+  --runtime python311 \textbackslash \\
+  --source . \textbackslash \\
+  --entry-point openweather\_forecast \textbackslash \\
+  --memory 512MB \textbackslash \\
+  --timeout 60s \textbackslash \\
+  --trigger-topic openweather-forecast-trigger \textbackslash \\
+  --set-env-vars "OPENWEATHER\_API\_KEY=xxxx,BQ\_TABLE\_ID=local-bliss-359814.wherehouse.dados\_openweather\_forecast,LOG\_LEVEL=1"}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=cloudblue!7!white, title=Agendamento]
+\texttt{gcloud scheduler jobs create pubsub openweather-every-3h \textbackslash \\
+  --schedule "0 */3 * * *" \textbackslash \\
+  --topic openweather-forecast-trigger \textbackslash \\
+  --message-body "\{\}" \textbackslash \\
+  --time-zone "America/Sao\_Paulo" \textbackslash \\
+  --location southamerica-east1}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=bqred!7!white, title=Consultar dados]
+\texttt{SELECT * FROM \`local-bliss-359814.wherehouse.dados\_openweather\_forecast\` \\
+ORDER BY timestamp\_utc DESC \\
+LIMIT 50;}
+\end{tcolorbox}
+
+\vspace{1em}
+
+% Boas Práticas
+\section*{\faThumbsUp~Boas Práticas}
+\begin{itemize}
+    \item Scripts isolam variáveis sensíveis em \texttt{envs}.
+    \item Logging estruturado com níveis de detalhamento (\texttt{LOG\_LEVEL}).
+    \item Schema dos dados centralizado nos scripts, para facilitar manutenção.
+    \item Deduplicação feita no BigQuery, evitando carga adicional nas funções.
+    \item Agendamento confiável e auditável via Cloud Scheduler.
+    \item Triggers centralizados por Pub/Sub, permitindo desacoplamento e fácil extensão.
+    \item Consultas de validação prontas para cada tabela, facilitando auditoria.
+\end{itemize}
+
+\vspace{1em}
+
+% Adicionar novas coletas
+\section*{\faPlusCircle~Como adicionar novas coletas ou providers}
+\begin{enumerate}
+    \item Copie um dos scripts atuais e ajuste a coleta/fonte.
+    \item Crie um novo tópico Pub/Sub específico.
+    \item Configure Cloud Function e agendamento (Cloud Scheduler).
+    \item Defina a tabela de destino no BigQuery e adicione a consulta de auditoria.
+    \item Atualize esta documentação técnica e/ou issue no GitHub.
+\end{enumerate}
+
+\vspace{1em}
+
+% Resolução de Problemas
+\section*{\faExclamationTriangle~Resolução de Problemas}
+\begin{itemize}
+    \item Verifique logs:
+    \begin{tcolorbox}[colback=yellow!7!white]
+    \texttt{gcloud functions logs read <nome\_da\_funcao> --region=southamerica-east1 --gen2 --limit 50}
+    \end{tcolorbox}
+    \item Teste função manualmente via Pub/Sub:
+    \begin{tcolorbox}[colback=yellow!7!white]
+    \texttt{gcloud pubsub topics publish <nome\_do\_topico> --message="\{\}"}
+    \end{tcolorbox}
+    \item Certifique-se de que as permissões de Pub/Sub estão configuradas para o Cloud Scheduler.
+\end{itemize}
+
+\vfill
+\begin{center}
+    {\scriptsize Documentação gerada por \texttt{ChatGPT} -- RG Pilots -- \today}
+\end{center}
+
+\end{document}

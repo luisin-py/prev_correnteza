@@ -1,0 +1,148 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\geometry{margin=2.3cm}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{lmodern}
+
+\title{Arquitetura e Modelos de Previsão para Painel de Praticagem}
+\author{Projeto Correnteza e Maré}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Introdução: Estrutura do Backend para Alimentação do BigQuery}
+
+O backend desenvolvido para alimentar o BigQuery foi construído com foco em robustez, flexibilidade e performance, visando consolidar dados ambientais --- maré, correnteza, meteorologia --- em um único pipeline centralizado para consulta e análise operacional dos práticos.
+
+A arquitetura se baseia em:
+\begin{itemize}
+    \item \textbf{APIs externas:} Consome previsões de maré e meteorologia (Inmet, OpenWeather, Hidromares, entre outras).
+    \item \textbf{Coleta automatizada:} Scripts em Python e Cloud Functions agendam e organizam coletas recorrentes (cada 5 minutos, 1 hora, etc), realizando tratamentos, normalizações e preenchimento de gaps.
+    \item \textbf{Enriquecimento e tratamento:} Consolidação dos dados brutos em tabelas tratadas (granularidade 5-min, 1h), com padronização de timestamps, fusos horários, tratamento de valores faltantes e deduplicação.
+    \item \textbf{Envio centralizado ao BigQuery:} Toda a base tratada alimenta tabelas no BigQuery, servindo tanto os painéis web quanto outros sistemas e relatórios dos práticos.
+    \item \textbf{APIs próprias:} Backend expõe endpoints REST que entregam recortes prontos para o frontend: histórico, previsões, dados interpolados, agregados e comparação de fontes.
+\end{itemize}
+
+\section{Ideias, Intenções e Objetivos do Painel}
+
+A construção do painel foi motivada pela necessidade dos práticos de ter visão clara, confiável e comparativa dos principais parâmetros ambientais diretamente impactando a operação:
+
+\begin{itemize}
+    \item \textbf{Centralização de informações:} Unir previsões, dados medidos em tempo real e históricos em um único dashboard, facilitando a tomada de decisão.
+    \item \textbf{Comparação de fontes:} Avaliar diferenças entre previsões oficiais (Marinha), previsão baseada em modelos próprios (GA), medições reais e interpoladas.
+    \item \textbf{Acesso rápido a diferentes profundidades:} Correnteza analisada em vários extratos verticais (1,5m, 3m, 6m, etc.), impactando a manobrabilidade em cada calado.
+    \item \textbf{Visualização temporal fácil:} Navegação fluida, permitindo que o prático percorra períodos anteriores, compare janelas de tempo e antecipe tendências.
+    \item \textbf{Personalização:} Seleção de profundidades, tipo de previsão, escala do gráfico e opções de visualização (pontos, bandas de incerteza, etc.).
+\end{itemize}
+
+\textbf{Pontos de melhoria já identificados:}
+\begin{itemize}
+    \item Expandir para novos parâmetros (ex: previsão de nevoeiro, visibilidade, vento por camada).
+    \item Refinar modelos próprios de previsão com mais variáveis e maior atualização.
+    \item Automatizar diagnósticos: destacar automaticamente situações críticas (correnteza extrema, anomalias, inversões rápidas).
+\end{itemize}
+
+\section{Componentes do Painel: O que foi feito, Objetivos e Configurações}
+
+O painel foi desenhado em módulos/componentes, cada um com propósito e personalização:
+
+\subsection*{a) Gráficos de Correnteza por Profundidade}
+\begin{itemize}
+    \item \textbf{Objetivo:} Exibir o perfil vertical da intensidade da correnteza em diferentes camadas, com comparação entre medições e previsões (5-min e horária).
+    \item \textbf{Configurações:} Seleção de profundidades, exibição com ou sem pontos, banda de previsão ajustável (\(\pm0{,}35\) ou \(\pm0{,}50\)), navegação temporal independente por profundidade.
+    \item \textbf{Personalização:} Cores distintas por profundidade, tooltips detalhados, mini-cards mostrando valor instantâneo.
+\end{itemize}
+
+\subsection*{b) Comparação de Maré (Marinha x Medida x GA)}
+\begin{itemize}
+    \item \textbf{Objetivo:} Comparar simultaneamente a previsão oficial, a medição real e a previsão própria do algoritmo genético.
+    \item \textbf{Configurações:} Exibição com/sem banda de incerteza (banda customizada com \(\pm0{,}15\)m ou valor ajustável), gráfico de linha, barras ou tabela, seleção de linhas visíveis, tooltips ricos.
+    \item \textbf{Personalização:} Ajuste de escala, janela temporal deslizante, legendas intuitivas, atualização automática ao mudar período.
+\end{itemize}
+
+\subsection*{c) Tabelas Dinâmicas e Histórico}
+\begin{itemize}
+    \item \textbf{Objetivo:} Visualização tabular de eventos, máximos/mínimos e análise detalhada de séries.
+    \item \textbf{Configurações:} Ordenação, paginação, filtros por profundidade, data, status.
+\end{itemize}
+
+\subsection*{d) Integração e Customização de Backend}
+\begin{itemize}
+    \item \textbf{Endpoints inteligentes:} Cada componente consome endpoints preparados para retornar apenas os dados necessários.
+    \item \textbf{Persistência de preferências:} Configurações do usuário são salvas em \texttt{localStorage}.
+\end{itemize}
+
+\section{Como são Geradas as Previsões (Maré e Correnteza)}
+
+\subsection*{a) Previsão de Maré}
+\begin{itemize}
+    \item \textbf{Base oficial:} A principal referência é a Marinha (Hidromares), com modelos de maré astronômica ajustados por meteorologia.
+    \item \textbf{Previsão própria (GA):} Algoritmo genético que aprende com séries históricas locais, gerando previsões por janelas móveis, ajustando parâmetros para minimizar o erro em relação à medição real.
+    \item \textbf{Validação:} Previsões são comparadas continuamente com a medição real, com cálculo de RMSE e ajuste fino dos modelos.
+\end{itemize}
+
+\subsection*{b) Previsão de Correnteza}
+
+As previsões de correnteza utilizam modelos próprios, desenvolvidos para cada profundidade, com processo de treino totalmente automatizado. Os principais pontos são:
+
+\begin{itemize}
+    \item \textbf{Dados de entrada:} Meteorologia (vento, pressão, chuva), parâmetros de maré e histórico de medições reais, para cada profundidade.
+    \item \textbf{Modelagem vertical:} Cada profundidade é tratada separadamente, empregando modelos genéticos, interpolação (ex: RBF), ou combinação de métodos.
+    \item \textbf{Atualização constante:} Os modelos são recalibrados periodicamente com novos dados; o painel permite trocar entre previsão horária e 5-min, conforme a necessidade operacional.
+\end{itemize}
+
+\subsubsection*{Resumo do Processo de Treinamento e Geração de Previsão de Correnteza}
+
+O modelo de previsão de correnteza é treinado e executado conforme o seguinte fluxo:
+
+\begin{enumerate}
+    \item \textbf{Coleta e pré-processamento:} São coletados dados das variáveis meteorológicas, nível da maré (previsto e real), além das séries históricas de intensidade de correnteza, para cada profundidade desejada.
+    \item \textbf{Engenharia de features:} O script adiciona \textit{lags} (atrasos) das variáveis, diferenças/deltas físicos obrigatórios e componentes cíclicos (hora do dia, dia da semana).
+    \item \textbf{Seleção automática de variáveis:} O modelo seleciona as variáveis mais densas e relevantes para o treino, incluindo tanto físicas obrigatórias quanto meteorológicas e sazonais.
+    \item \textbf{Divisão do dataset:} Os dados são separados em treino e validação (\(\sim85\%\) treino, \(\sim15\%\) validação).
+    \item \textbf{Treino do Algoritmo Genético:} Uma população inicial de genomas é criada, representando possíveis combinações de pesos e bias. O algoritmo evolui ao longo de várias gerações, selecionando, recombinando e mutando indivíduos de acordo com a capacidade de prever a intensidade da correnteza com menor erro (RMSE penalizado por sinal).
+    \item \textbf{Calibração linear:} Após o treino, é realizado um ajuste linear simples para calibrar as previsões sobre os dados de validação, corrigindo possíveis desvios de escala e offset.
+    \item \textbf{Backtest recursivo:} O modelo é testado em um período de validação contínua, utilizando suas próprias previsões como entrada (\textit{recursive backtesting}), para garantir robustez e realismo operacional.
+    \item \textbf{Feature importance:} O script retorna as variáveis com maior impacto no modelo (maiores pesos).
+    \item \textbf{Persistência e atualização:} O melhor modelo de cada profundidade é salvo. Se, em um novo treino, o RMSE de validação for inferior ao anterior, o modelo é atualizado.
+\end{enumerate}
+
+\section{Desenvolvimentos Futuros e Melhorias Planejadas}
+
+\subsection*{a) Previsão de Nevoeiro Específica para a Barra}
+\begin{itemize}
+    \item \textbf{Justificativa:} O nevoeiro é um dos fatores ambientais mais críticos para a segurança na praticagem. Prever sua ocorrência pode evitar riscos e atrasos.
+    \item \textbf{Desenvolvimento:} Integração de modelos de previsão de nevoeiro usando dados meteorológicos (umidade, temperatura, vento, pressão, visibilidade local e global).
+    \item \textbf{Integração ao painel:} Visualização dedicada e alertas automáticos para o prático.
+\end{itemize}
+
+\subsection*{b) Outras melhorias em andamento}
+\begin{itemize}
+    \item Melhoria contínua dos modelos GA, com mais variáveis, inteligência artificial e ajuste automático de hiperparâmetros.
+    \item Diagnósticos automáticos, com alertas para situações críticas (correnteza, maré extrema, vento, anomalias).
+    \item Interface cada vez mais responsiva e intuitiva, com melhor usabilidade em dispositivos móveis e customização por usuário.
+    \item Novos painéis e indicadores, como integração com sistemas de agendamento, histórico de manobras, painel com dados históricos para extração para instituições de pesquisa e criação de painel administrativo para apoio operacional.
+\end{itemize}
+
+% Adição das ideias organizadas ao final, conforme solicitado
+\section*{Expansões Futuras e Centralização de Dados}
+
+Para tornar o painel ainda mais completo, robusto e único ponto de acesso do prático, estão previstos:
+\begin{itemize}
+    \item Integração com dados de novas fontes, como ANA, SIM Costa, Open-Meteo, para aumentar a precisão e cobertura das previsões.
+    \item Incorporação de dados de pauta operacional, permitindo centralizar informações de maré, correnteza, meteorologia, visibilidade, além de dados enviados por consultorias parceiras (Catavento, Muitos Bons Ventos).
+    \item Possibilidade de centralizar informações de diferentes sistemas em um só lugar, resolvendo o problema de acesso disperso e necessidade de múltiplos links e portais na hora da manobra.
+\end{itemize}
+
+\section*{Resumo Final}
+
+O projeto, desde a estrutura backend até o frontend avançado, foi idealizado para facilitar o processo de manobra dos práticos, trazendo todos os dados à um só lugar e previsões, para auxiliar nas decisões operacionais diárias. 
+O painel já reúne, em tempo real, dados de correnteza, maré, meteorologia, visibilidade, previsão de nevoeiro, históricos e suas previsões para os próximos 5 dias via Api Openweather, que são fundamentais para segurança e eficiência, estando pronto para evoluir rapidamente, integrando novos dados e previsões personalizadas conforme novas demandas da Praticagem. Ainda, com a futura integração de dados do ANA, SIM Costa, Open-Meteo e centralização de informações de pauta e consultorias, o painel se consolida como a ferramenta definitiva para a praticagem.
+
+\end{document}

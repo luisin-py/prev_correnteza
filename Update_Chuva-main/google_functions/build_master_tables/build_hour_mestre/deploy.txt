@@ -1,0 +1,38 @@
+✅ Função: build_hour_mestre
+
+🔔 Criar tópico
+gcloud pubsub topics create build_hour_mestre-trigger
+
+
+🚀 Deploy
+gcloud functions deploy build_hour_mestre \
+  --gen2 \
+  --region southamerica-east1 \
+  --runtime python311 \
+  --source . \
+  --entry-point main \
+  --memory 512MB \
+  --timeout 300s \
+  --trigger-topic build_hour_mestre-trigger
+
+
+⏰ Agendamento com delay de 3h (para interpolação com dados já disponíveis)
+gcloud scheduler jobs create pubsub build_hour_mestre-every-hour \
+  --schedule "0 * * * *" \
+  --topic build_hour_mestre-trigger \
+  --message-body "{}" \
+  --time-zone "America/Sao_Paulo" \
+  --location southamerica-east1
+
+
+🧪 Testar cada função manualmente
+gcloud pubsub topics publish build_hour_mestre-trigger --message="start"
+
+🪵 Ver logs de cada função
+gcloud functions logs read build_hour_mestre --region=southamerica-east1
+
+
+-- build_hour Consulta BQ:
+SELECT * FROM `local-bliss-359814.wherehouse_tratado.build_hour_mestre` 
+ORDER BY timestamp_utc DESC LIMIT 50;
+

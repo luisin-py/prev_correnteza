@@ -1,0 +1,43 @@
+Enviar os arquivos para o Google Cloud, criar a imagem Docker, 
+publicar no Container Registry do seu projeto: -> 
+
+gcloud builds submit --tag gcr.io/$(gcloud config get-value project)/chuvas-run:v4 . #obs: a cada novo deploy se atualiza a verssão para evitar erros de cash
+
+
+ fazer o deploy no Cloud Run:
+
+gcloud run deploy chuvas-worker \
+  --image gcr.io/local-bliss-359814/chuvas-run:v4 \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --cpu 1 --memory 1Gi --timeout 900 \
+  --max-instances 1 \
+  --set-env-vars "BQ_TABLE_ID=local-bliss-359814.wherehouse.dados_inmet_estacoes,LOG_LEVEL=1"
+
+
+Esse comando:
+
+Cria (ou atualiza) o serviço chuvas-worker
+
+Torna ele público (com --allow-unauthenticated)
+
+Define as variáveis de ambiente necessárias
+
+
+# Cria o job que executa seu Cloud Run a cada 5 minutos:
+
+gcloud scheduler jobs create http chuvas-job \
+  --schedule="*/5 * * * *" \
+  --uri="https://chuvas-worker-lo3b4eb7ba-uc.a.run.app/" \
+  --http-method=GET \
+  --oidc-service-account-email="scheduler-invoker@local-bliss-359814.iam.gserviceaccount.com" \
+  --oidc-token-audience="https://chuvas-worker-lo3b4eb7ba-uc.a.run.app" \
+  --time-zone="America/Sao_Paulo" \
+  --location=us-central1
+
+Consulta BQ:
+SELECT *
+FROM `local-bliss-359814.wherehouse.dados_inmet_estacoes`
+ORDER BY dt_utc DESC
+LIMIT 50

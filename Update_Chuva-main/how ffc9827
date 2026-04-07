@@ -1,0 +1,308 @@
+[33mcommit ffc9827a7aa9c6583795ae809ef750c4108a6915[m[33m ([m[1;36mHEAD -> [m[1;32mdev[m[33m)[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 8 09:13:39 2025 -0300
+
+    Ajuste para testar o train_alldata
+
+[33mcommit e5631ba67462f8c855f0e10dc7d23cf6a48ffa79[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jul 7 22:32:47 2025 -0300
+
+    Ajustes
+
+[33mcommit 4a4e227c669ae3b6b602b502412564ed32513b78[m[33m ([m[1;31morigin/dev[m[33m)[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jul 7 21:59:05 2025 -0300
+
+    Adicionado join para tabela update 5min e all Data #21
+
+[33mcommit aeba7b10bf5237dd0979643626484f4a76dca7dc[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jul 7 10:45:22 2025 -0300
+
+    Adicionado validador de porcentagem de acerto #21
+
+[33mcommit 903570ea4cdf8247dd0852053f5c58b59f913a6a[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Sun Jul 6 18:59:55 2025 -0300
+
+    Adicionado ajustes no script que gera a previsão e no script que crie e o que atualiza as tabelas mestre tratadas #20
+
+[33mcommit d7c87cf0f0d097fa58e4d16fd0217f674329c653[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri Jul 4 15:33:40 2025 -0300
+
+    Adicionado script para atualizar as tabelas mestre tratadas e add ciclo para gerar previssão a cada 5 min e tambem add peso lunas no treino e previsão assim como o input é as ultimas 4 horas da tabela horaria e a ultima linha da tabela 5min para pegar os dadosmais recentes
+
+[33mcommit e4970e2ca3df65ba088d732833b5ac5d67b19f06[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri Jul 4 14:30:34 2025 -0300
+
+    Adicionado fator lunar
+
+[33mcommit 3c0cf087c15a6e663153f4b393d961fa8540bb4f[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri Jul 4 10:03:01 2025 -0300
+
+    ajustado para os dois scripts darem partida a partir do gene existente se existir
+
+[33mcommit 646419ee8b6a612eba425d72a97e636f3c5e0f08[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri Jul 4 09:35:49 2025 -0300
+
+    Adicionado treinamento alimentado pela tabela allData
+
+[33mcommit f0daf48160544b574c3d765d197dfd0b0449b88d[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Thu Jul 3 14:43:53 2025 -0300
+
+    Adicionado trainamento e previsão para altura damaré
+
+[33mcommit 4761d20a5131a4882fa5cf88c43336e051aa0bc5[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Wed Jul 2 11:42:31 2025 -0300
+
+    Adicionados novoscampostratados para enchente vazante para cada profundidade
+
+[33mcommit 0a4cbac490cb4b493f75faf6417ff6052ca35336[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 14:51:51 2025 -0300
+
+    Create_table_5minAndhour_tratadas.py ajustado e testado
+
+[33mcommit 82f7192b4e2c4ca9e11c699d727f9202a838c9af[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 12:27:21 2025 -0300
+
+    Ajustado para gerar as duas tabelas tratadas
+
+[33mcommit a754eec7c3148a85ee52b8f37d2eeaea6a69a300[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 12:24:09 2025 -0300
+
+    Add create_table_5min_tratada
+
+[33mcommit 2db386cd8d9bbf14ebcfd7530a3f85423eaffb2a[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 11:39:11 2025 -0300
+
+    Adicionado script create_table_5min_personalizada.py  para gerar a tabela mestre quadratica
+
+[33mcommit 7c605f31ce710830cd17d6da1df01a2b9a30011c[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 09:59:04 2025 -0300
+
+    Updates verificados e testados
+
+[33mcommit 8ddd13a931bff599ac718976a6b5af754aa2c7bf[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 09:36:22 2025 -0300
+
+    Ajuste
+
+[33mcommit 98d57a466516542a14bc6d1c90e746cf5c2bd534[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jul 1 09:35:30 2025 -0300
+
+    Ajustado sql para create table hour add filtro de inicio pra a update 5 min e ajustado desparidade de resultado final ignorando horas q fogem da seguência daupdate
+
+[33mcommit a0674b75273e408d1232d0327db1ebf1b2497408[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jun 10 15:57:27 2025 -0300
+
+    Add update  table 5min #19
+
+[33mcommit 58bffbce2a643121955354230b89a333a1ee0abf[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jun 10 15:24:46 2025 -0300
+
+    Ajustes em Create table 5min add Versão 3 #19
+
+[33mcommit 0cb215b26548fdc8900a53c31ede5c116b081f8a[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jun 10 13:57:08 2025 -0300
+
+    Ajustes em Create table hour add Versão 5 #19
+
+[33mcommit d452359a60bf739117f3f49c3f51428f3d3eceeb[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jun 9 15:44:09 2025 -0300
+
+    Ajustes emCreate table hour #19
+
+[33mcommit 992a0bec3e7f8654ba367d2730b2c0575d91ef06[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jun 9 14:08:33 2025 -0300
+
+    Ajustes emCreate table hour
+
+[33mcommit d9e3135aab5bfdd4c631abee4ce912387a201b4b[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jun 9 12:28:39 2025 -0300
+
+    Ajustes emCreate tablehour
+
+[33mcommit f1555d5927f7552aac489db4b3f148f2ef1a7c58[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Sat Jun 7 22:58:24 2025 -0300
+
+    Ajustes Consulta para criar tabela mestre de 5 min
+
+[33mcommit e531b4650c4574844de558081442d28d94ba8ba0[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Sat Jun 7 22:31:40 2025 -0300
+
+    Adicionado Consulta para criar tabela mestre de 5 min
+
+[33mcommit 92ed32227908d50715dea79b995cd1de91130375[m
+Merge: a44c461 ece3c1a
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Sat Jun 7 22:14:45 2025 -0300
+
+    Merge branch 'main' into dev
+
+[33mcommit ece3c1a15cf994595fe708244170f8330b0a88c5[m[33m ([m[1;32mmain[m[33m)[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Sat Jun 7 22:14:27 2025 -0300
+
+    Ajuste na consulta q alimenta a tabela horaria
+
+[33mcommit 01ab4025af9f126cb5612c430877456afdfaa57d[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Sat Jun 7 22:13:53 2025 -0300
+
+    Ajuste na consulta q alimenta a tabela horaria
+
+[33mcommit a44c461a61ce5219b253c7721f10aee40df318bc[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Wed Jun 4 13:00:00 2025 -0300
+
+    Ajustado consulta de criação da tabela mestre
+
+[33mcommit c328bc453fb4c8921e672011aa756257f99b27f9[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jun 3 22:15:05 2025 -0300
+
+    Teste no sql
+
+[33mcommit c1501ac74a70f5b74a54ebeb53eb1b11553d1ae0[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue Jun 3 17:58:26 2025 -0300
+
+    Add script parapopuilartabela mestre. Obs: falta ajustar eles
+
+[33mcommit cfa159d32dd333e89c92a2e5578019ff50983d06[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Merge: c22ba36 c3537c5
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jun 2 14:24:14 2025 -0300
+
+    Merge branch 'dev' into main
+
+[33mcommit c3537c50cc8db2718dded5a3a9604f5681ec5979[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Mon Jun 2 14:23:54 2025 -0300
+
+    Ajustado coleta de dados air pollution para pegar mais cidades além de Rio Grande #13
+
+[33mcommit c22ba3631d68e422fabd42dc158adeac4dc24bf7[m
+Merge: b3bcd28 4245158
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 20:41:31 2025 -0300
+
+    Merge branch 'main' of https://github.com/Estatistica-Praticagem/Update_Chuva into main
+
+[33mcommit b3bcd289615809290bd0de53268f730a984df303[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 20:40:15 2025 -0300
+
+    Ajustes
+
+[33mcommit 4245158c9cb726a13c79c7b2e2cbed996d144646[m
+Merge: 0cb94ee 45b8f80
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 20:36:30 2025 -0300
+
+    Merge pull request #17 from Estatistica-Praticagem/dev
+    
+    Dev
+
+[33mcommit 45b8f8090840f09fa8c129d570477eb8fce309c3[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 20:35:50 2025 -0300
+
+    Ajustes paraadicionar o envio do novo campo timestamp_execucao #13
+
+[33mcommit b6f1c65106fe730f50c436f0f0b4b359ed15d1f6[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 13:42:41 2025 -0300
+
+    Ajustes
+
+[33mcommit 18d6795e8a4ce323f5ebe67b8292cea5dc152b7c[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 11:37:16 2025 -0300
+
+    Ajustes
+
+[33mcommit 5e7de553186e741e6e7edd36f43cf91188c3d0c2[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 10:50:05 2025 -0300
+
+    Ajustes nos comandos deploy #13
+
+[33mcommit 01e48277f6f9928ae484c30d7978cca0f81a81ed[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 30 10:22:14 2025 -0300
+
+    Adicionado script no google functions para coletor openweather_air_pollution agora add a coluna timestamp_execucao mapeando o horario que o script executou no horario de Brasilia #13
+
+[33mcommit 28c1754c0c488fc53cabb048d80bd40101c0f6a8[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Thu May 29 22:33:01 2025 -0300
+
+    Adicionado script nogoogle functions para coletor openweather_air_pollution #13
+
+[33mcommit 87b25899f8b263830465aaa45783c55b05713736[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Thu May 29 22:14:46 2025 -0300
+
+    Ajustes no script google functions openweather_forecast #13
+
+[33mcommit e893ed8848ee2ac4f857c6959ae54c881c0aecb9[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Thu May 29 17:00:40 2025 -0300
+
+    Adicionado script de coleta de dados para a api openweather_forecast #13
+
+[33mcommit 0625cdbbafb36911ac0f4d9532f095d67ddc08c6[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Wed May 28 20:26:37 2025 -0300
+
+    Adicionmado script para google clund run usando conteiner para execução update inmet porem nessecita de permissão do admin para a chamada do conteiner #13
+
+[33mcommit 0cb94ee66b0db17e51b6daef820bc4665e93ece5[m
+Merge: 2e71cbb a73d4f1
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Wed May 28 13:00:11 2025 -0300
+
+    Merge pull request #14 from Estatistica-Praticagem/dev
+    
+    Dev
+
+[33mcommit a73d4f1a30265b8fde25408d83af6ad4b08a2ae1[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Wed May 28 12:52:10 2025 -0300
+
+    #13 feat: Implement automated OpenWeather data collection and ingestion to BigQuery
+
+[33mcommit 26161fb08eb9cc6e566fb4b4804260261299ca52[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Tue May 27 22:45:50 2025 -0300
+
+    Adicionado pasta google_functions e script para executar o script de coleta openwhather no google functions #13
+
+[33mcommit 85712d394ad13a026aba4f5d6a2338fb058fd90f[m
+Author: pegoraro <estatistica@rgpilots.com.br>
+Date:   Fri May 23 14:52:29 2025 -0300
+
+    Adicionado scripts de coleta OpenWeather (Forecast e Air Pollution) #12 #11

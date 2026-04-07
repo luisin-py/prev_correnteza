@@ -1,0 +1,43 @@
+1 Criar (ou garantir) o tópico Pub/Sub
+gcloud pubsub topics create openweather-air-pollution-trigger
+
+2 Deploy da Cloud Function (Gen 2, acionada pelo tópico)
+gcloud functions deploy openweather-air-pollution \
+  --gen2 \
+  --region southamerica-east1 \
+  --runtime python311 \
+  --source . \
+  --entry-point openweather_airpollution \
+  --memory 512MB \
+  --timeout 60s \
+  --trigger-topic openweather-air-pollution-trigger \
+  --set-env-vars "OPENWEATHER_API_KEY=COLOQUE_SUA_CHAVE_OPENWEATHER_AQUI,BQ_TABLE_ID=local-bliss-359814.wherehouse.dados_openweather_air_pollution,LOG_LEVEL=1"
+
+3 Dar permissão para o Cloud Scheduler publicar
+gcloud pubsub topics add-iam-policy-binding openweather-air-pollution-trigger \
+  --member="serviceAccount:local-bliss-359814@appspot.gserviceaccount.com" \
+  --role="roles/pubsub.publisher"
+
+4 Criar o job do Cloud Scheduler (a cada 5 min)
+gcloud scheduler jobs create pubsub openweather-air-pollution-job \
+  --schedule "0 */3 * * *" \
+  --topic openweather-air-pollution-trigger \
+  --message-body "{}" \
+  --time-zone "America/Sao_Paulo" \
+  --location southamerica-east1
+
+
+
+5 Testar manualmente
+gcloud pubsub topics publish openweather-air-pollution-trigger --message="{}"
+
+6 Ver logs da função
+gcloud functions logs read openweather-air-pollution \
+  --region southamerica-east1 \
+  --gen2 --limit 50
+
+7 Consultar no BigQuery
+SELECT *
+FROM `local-bliss-359814.wherehouse.dados_openweather_air_pollution`
+ORDER BY timestamp_utc DESC
+LIMIT 50;

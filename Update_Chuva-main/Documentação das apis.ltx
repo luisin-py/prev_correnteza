@@ -1,0 +1,202 @@
+\documentclass[a4paper,12pt]{article}
+
+% ----------------------------------------------------------------
+% Configurações de idioma e acentuação
+\usepackage[utf8]{inputenc}     % Fonte do arquivo .tex em UTF-8
+\usepackage[T1]{fontenc}        % Codificação de saída
+\usepackage[brazil]{babel}      % Hifenização em português
+\usepackage{textcomp}           % Símbolo \textdegree
+% ----------------------------------------------------------------
+
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\title{\textbf{\Huge Documentação das APIs de Coleta Meteorológica e Ambiental}}
+\author{RG Pilots}
+\date{\today}
+
+% Atalho para símbolo micro
+\newcommand{\micro}{\ensuremath{\mu}}
+
+\begin{document}
+\maketitle
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{1. API INMET – Dados Meteorológicos Horários}}
+
+Esta API fornece dados horários das estações automáticas do INMET (arquivos \texttt{.CSV}).
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Campo Original} & \textbf{Campo Interno} & \textbf{Descrição} \\ \midrule
+\endhead
+Data & data & Data da medição (dd/mm/yyyy) \\
+Hora (UTC) & hora\_utc & Hora da medição (UTC) \\
+Temp.\ Ins.\ (C) & temperatura\_inst & Temperatura instantânea (\textdegree C) \\
+Temp.\ Max.\ (C) & temperatura\_max & Temperatura máxima do dia (\textdegree C) \\
+Temp.\ Min.\ (C) & temperatura\_min & Temperatura mínima do dia (\textdegree C) \\
+Umi.\ Ins.\ (\%) & umidade\_inst & Umidade relativa instantânea (\%) \\
+Umi.\ Max.\ (\%) & umidade\_max & Umidade relativa máxima (\%) \\
+Umi.\ Min.\ (\%) & umidade\_min & Umidade relativa mínima (\%) \\
+Pto Orvalho Ins.\ (C) & pto\_orvalho\_inst & Ponto de orvalho instantâneo (\textdegree C) \\
+Pto Orvalho Max.\ (C) & pto\_orvalho\_max & Ponto de orvalho máximo (\textdegree C) \\
+Pto Orvalho Min.\ (C) & pto\_orvalho\_min & Ponto de orvalho mínimo (\textdegree C) \\
+Pressao Ins.\ (hPa) & pressao\_inst & Pressão instantânea (hPa) \\
+Pressao Max.\ (hPa) & pressao\_max & Pressão máxima (hPa) \\
+Pressao Min.\ (hPa) & pressao\_min & Pressão mínima (hPa) \\
+Vel.\ Vento (m/s) & vento\_vel\_m\_s & Velocidade média do vento (m/s) \\
+Dir.\ Vento (graus) & vento\_dir\_deg & Direção do vento (graus) \\
+Raj.\ Vento (m/s) & vento\_raj\_m\_s & Rajada máxima (m/s) \\
+Radiacao (kJ/m\textsuperscript{2}) & radiacao & Radiação solar acumulada (kJ/m\textsuperscript{2}) \\
+Chuva (mm) & chuva & Precipitação acumulada (mm) \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{2. API OpenWeather – Current Weather}}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+coord.lat, coord.lon & Latitude e longitude \\
+weather[].id & Código da condição climática \\
+weather[].main & Tipo geral do clima \\
+weather[].description & Descrição detalhada \\
+weather[].icon & Ícone da condição climática \\
+main.temp, feels\_like & Temperatura e sensação térmica (\textdegree C) \\
+main.temp\_min, temp\_max & Temperaturas mín./máx.\ observadas (\textdegree C) \\
+main.pressure & Pressão (hPa) \\
+main.humidity & Umidade (\%) \\
+main.sea\_level, grnd\_level & Pressão ao nível do mar/solo (hPa) \\
+visibility & Visibilidade (m) \\
+wind.speed, wind.deg, wind.gust & Velocidade, direção, rajada do vento \\
+clouds.all & Cobertura de nuvens (\%) \\
+rain.1h, snow.1h & Chuva/Neve última hora (mm) \\
+dt & Timestamp (Unix UTC) \\
+sys.country, sunrise, sunset & País, nascer/pôr do sol \\
+timezone & Diferença de fuso (s) \\
+name, id, cod & Cidade, ID e status \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{3. API OpenWeather – Forecast (5 Day / 3 h)}}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+timestamp\_utc & Data/hora da previsão (UTC) \\
+city, lat, lon & Cidade e coordenadas \\
+temp, feels\_like & Temperatura e sensação térmica (\textdegree C) \\
+temp\_min, temp\_max & Temperaturas mín./máx.\ previstas (\textdegree C) \\
+pressure, humidity & Pressão (hPa) e umidade (\%) \\
+sea\_level, grnd\_level & Pressão ao nível do mar/solo (hPa) \\
+visibility & Visibilidade (m) \\
+wind\_speed, wind\_deg, wind\_gust & Vento: velocidade, direção, rajada \\
+weather\_main, weather\_description & Condição principal e descrição \\
+clouds\_all & Cobertura de nuvens (\%) \\
+pop & Probabilidade de precipitação (\%) \\
+rain\_3h, snow\_3h & Chuva/Neve acumulada 3 h (mm) \\
+sys\_pod & Indicador de período (d = dia / n = noite) \\
+timezone, cod & Fuso (s) e status \\
+dt\_txt & Carimbo local da previsão \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{4. API OpenWeather – Air Pollution}}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+timestamp\_utc & Data/hora da coleta (UTC) \\
+city, lat, lon & Cidade e coordenadas \\
+aqi & Índice de Qualidade do Ar (1–5) \\
+co, no, no2 & CO, NO, NO\textsubscript{2} (\micro{}g/m\textsuperscript{3}) \\
+o3, so2 & O\textsubscript{3}, SO\textsubscript{2} (\micro{}g/m\textsuperscript{3}) \\
+pm2\_5, pm10 & PM2.5 / PM10 (\micro{}g/m\textsuperscript{3}) \\
+nh3 & Amônia (\micro{}g/m\textsuperscript{3}) \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{5. API getControls}}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+umidade & Umidade relativa (\%) \\
+pressao & Pressão atmosférica (hPa) \\
+ventointensidade & Velocidade do vento (m/s) \\
+ventodirecao & Direção do vento (cardinal) \\
+ventonum & Direção do vento (graus) \\
+temperatura & Temperatura do ar (\textdegree C) \\
+sensacaotermica & Sensação térmica (\textdegree C) \\
+data\_station\_davis & Timestamp da coleta \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{6. API getMare}}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+data\_mare\_getMare & Data/hora da maré prevista \\
+altura\_prev\_getmare & Altura prevista (m) \\
+data\_mare\_real\_getMare & Data/hora da maré real \\
+altura\_real\_getmare & Altura real observada (m) \\
+tipo\_mare\_getControls & Tipo de medição (P/R) \\
+altura\_medida\_getControls & Altura medida localmente (m) \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{7. API Hidromares}}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+data\_hidromares & Data/hora da amostragem \\
+intensidade\_Xm & Intensidade da corrente na profundidade X (m/s) \\
+direcao\_Xm & Direção da corrente na profundidade X (graus) \\
+Profundidades & 1.5, 3, 6, 7.5, 9, 10.5, 12, 13.5, 15 m, superfície \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{8. Campos de Validação e Status}}
+
+\subsection*{Validação}
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+valid\_<campo> & Booleano que indica se o valor foi validado \\ \bottomrule
+\end{longtable}
+
+\subsection*{Status das APIs}
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Campo} & \textbf{Descrição} \\ \midrule
+\endhead
+api\_mare & Código da resposta da API de maré \\
+api\_hidromares & Código da resposta da API de correnteza \\
+api\_estatistica & Reservado para modelo estatístico futuro \\ \bottomrule
+\end{longtable}
+
+%────────────────────────────────────────────────────────
+\section*{\textcolor{blue}{9. Observações e Próximas Etapas}}
+\begin{itemize}
+  \item Manter esta documentação sincronizada a cada nova API ou campo acrescentado.
+\end{itemize}
+
+\vspace{2em}
+\begin{center}
+\small Documentação gerada em \today
+\end{center}
+
+\end{document}

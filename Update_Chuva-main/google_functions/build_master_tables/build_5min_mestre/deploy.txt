@@ -1,0 +1,42 @@
+✅ Função: build_5min_mestre
+
+🔔 Criar tópico
+# Cria o tópico que irá acionar a função (se ainda não existir)
+gcloud pubsub topics create build_5min_mestre-trigger
+
+
+
+🚀 Deploy
+# Faz o deploy da função build_5min_mestre, definindo variáveis de ambiente e recursos
+gcloud functions deploy build_5min_mestre \
+  --gen2 \
+  --region southamerica-east1 \
+  --runtime python311 \
+  --source . \
+  --entry-point main \
+  --memory 512MB \
+  --timeout 300s \
+  --trigger-topic build_5min_mestre-trigger \
+  --set-env-vars "BQ_TABLE_ID=local-bliss-359814.wherehouse_tratado.build_5min_mestre"
+
+
+
+⏰ Agendamento com delay de 3h (para interpolação com dados já disponíveis)
+# Cria agendamento para rodar a cada 5 minutos
+gcloud scheduler jobs create pubsub build_5min_mestre-every-5min \
+  --schedule "*/5 * * * *" \
+  --topic build_5min_mestre-trigger \
+  --message-body "{}" \
+  --time-zone "America/Sao_Paulo" \
+  --location southamerica-east1
+
+
+🧪 Testar cada função manualmente
+gcloud pubsub topics publish build_5min_mestre-trigger --message="start"
+
+🪵 Ver logs de cada função
+gcloud functions logs read build_5min_mestre-trigger --region=southamerica-east1
+
+-- build_5min Consulta BQ:
+SELECT * FROM `local-bliss-359814.wherehouse_tratado.build_5min_mestre`
+ ORDER BY timestamp_utc DESC LIMIT 50;

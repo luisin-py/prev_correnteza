@@ -254,7 +254,7 @@ else:
 # %%
 print("  3D. OpenWeather forecast (API Direta 1h)...")
 
-OW_API_KEY = "10fe60f23364376f39951ae7c07d0007"
+OW_API_KEY = "COLOQUE_SUA_CHAVE_OPENWEATHER_AQUI"
 lat_rg, lon_rg = -32.035, -52.0986 # Rio Grande
 
 try:
@@ -617,3 +617,4 @@ print("  ✅ V6 CONCLUÍDA — Previsões de superfície geradas com sucesso!")
 print(f"  📁 CSV local: {os.path.join(OUTPUT_DIR, 'previsoes_v6_last_run.csv')}")
 print(f"  🕐 Próxima execução: a cada 15 minutos via Cloud Scheduler")
 print("═" * 70)
+

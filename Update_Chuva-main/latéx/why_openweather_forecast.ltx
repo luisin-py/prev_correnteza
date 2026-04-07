@@ -1,0 +1,69 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\geometry{margin=2.3cm}
+\usepackage{enumitem}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\title{Confiabilidade das Previsões da OpenWeather no Painel de Praticagem}
+\author{Projeto Correnteza e Maré}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Por que considerar a OpenWeather confiável}
+A OpenWeather é um provedor consolidado de dados meteorológicos e de previsão, com distribuição global via APIs estáveis e documentação madura. No contexto operacional da praticagem, sua utilidade vem de três pilares:
+\begin{enumerate}[leftmargin=1.2em]
+  \item \textbf{Cobertura e disponibilidade:} dados para praticamente qualquer coordenada, com alta disponibilidade e baixa latência de consulta.
+  \item \textbf{Integração simples:} formatos consistentes (JSON), históricos e \emph{forecast} em janelas regulares, o que facilita \emph{backtesting} e monitoramento de qualidade contínuo.
+  \item \textbf{Ecosistema consolidado:} bibliotecas, exemplos e comunidade ampla para suporte e troubleshooting.
+\end{enumerate}
+
+\section{Como as previsões são produzidas e por que isso agrega confiança}
+Sem depender de detalhes proprietários, a cadeia típica de um provedor moderno como a OpenWeather combina:
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Modelos numéricos globais e regionais} (NWP), que resolvem equações físicas da atmosfera em grades de tempo e espaço.
+  \item \textbf{Assimilação de dados} de estações meteorológicas, satélites, boias, radares e observações de superfície, reduzindo o erro inicial dos modelos.
+  \item \textbf{Pós-processamento estatístico/ML} para correções sistemáticas (bias) e para transformar saídas brutas em variáveis operacionais (ex.: rajada, visibilidade prevista, índices de fenômenos).
+  \item \textbf{Atualizações frequentes} por produto e horizonte (curto e médio prazo), incorporando rapidamente novas observações.
+\end{itemize}
+Esse encadeamento garante que as previsões não são estáticas: elas refletem a melhor estimativa física disponível, ajustada por observações recentes e calibrada por técnicas estatísticas.
+
+\section{O que reforça a confiabilidade no \emph{seu} uso}
+No nosso painel, a confiabilidade das previsões da OpenWeather é ampliada por práticas de engenharia e validação contínua:
+\begin{enumerate}[leftmargin=1.2em]
+  \item \textbf{Comparação cruzada} (\emph{multi-fonte}): exibimos OpenWeather ao lado de outras fontes (ex.: modelos próprios, medições locais, marégrafo, ADCP). Divergências relevantes são realçadas.
+  \item \textbf{Verificação objetiva diária} (\emph{backtesting}): calculamos métricas como RMSE/MAE e viés entre previsão (temperatura, vento, pressão, visibilidade) e a medição local, por janela e horizonte.
+  \item \textbf{Calibração local}: quando detectado viés sistemático (ex.: vento subestimado em condições de canalização), aplicamos correções simples no \emph{frontend} ou incorporamos essas correções nos nossos modelos auxiliares.
+  \item \textbf{Banda/intervalos operacionais}: apresentamos bandas de confiança e thresholds (alertas) para leitura operacional rápida (ex.: rajada acima de limiar; visibilidade baixa).
+  \item \textbf{Observabilidade e auditoria}: guardamos séries brutas e tratadas no \emph{data lake} (BigQuery), permitindo auditoria histórica de acerto e melhoria contínua.
+\end{enumerate}
+
+\section{Métricas sugeridas de qualidade (rotina automática)}
+Para manter a confiabilidade explícita e mensurável, adotamos (ou podemos adotar) as seguintes métricas:
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Temperatura e pressão:} RMSE, MAE e viés por horizonte (D+0, D+1, \ldots).
+  \item \textbf{Vento (média e rajada):} RMSE da intensidade (nós) e erro angular médio (direção).
+  \item \textbf{Visibilidade:} taxa de acerto por faixas (ex.: $<$\,1\,km; 1--5\,km; $>$\,5\,km) e Brier Score quando a fonte fornecer probabilidade explícita.
+  \item \textbf{Chuva e fenômenos:} taxas de \emph{hit/miss/false alarm} por janela; quando houver PoP (\emph{probability of precipitation}), usar Brier Score/fiabilidade.
+\end{itemize}
+Resultados ficam acessíveis no painel para transparência e para balizar decisões (ex.: maior peso a horizontes/hora do dia com melhor escore).
+
+\section{Limitações conhecidas e como mitigamos}
+Toda previsão tem limites; explicitar isso aumenta a confiança:
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Resolução espacial/temporal:} microclimas costeiros, canalizações de vento e efeitos muito locais podem escapar da malha dos modelos. \emph{Mitigação:} calibração por estação local e uso de bandas/alertas.
+  \item \textbf{Fenômenos de curta duração} (nevoeiro, \emph{squalls}): são intrinsecamente difíceis. \emph{Mitigação:} combinar \emph{nowcasting} local (tendência das últimas horas), umidade/temperatura/vento e regras heurísticas de probabilidade no painel.
+  \item \textbf{Mudanças rápidas de regime}: frentes, \emph{jets} de baixa camada. \emph{Mitigação:} atualização frequente do painel e comparação com medições em tempo real.
+\end{itemize}
+
+\section*{Conclusão}
+A OpenWeather fornece previsões consistentes e amplamente utilizadas, adequadas como \textbf{fonte robusta} dentro de um ecossistema \emph{multi-fonte}. Ao integrarmos essas previsões ao nosso painel com \textbf{verificação contínua}, \textbf{calibração local} e \textbf{bandas operacionais}, elevamos a confiabilidade prática para o contexto da praticagem: decisões mais informadas, riscos mais visíveis e respostas mais rápidas a mudanças de tempo.
+
+\end{document}
